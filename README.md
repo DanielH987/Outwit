@@ -38,12 +38,13 @@ Contributions are what make the open-source community such an amazing place to l
 5. Open a Pull Request
 
 ## Contact
-Your Name - [hootinid@gmail.com](mailto:hootinid@gmail.com)
+Daniel Hootini - [hootinid@gmail.com](mailto:hootinid@gmail.com)
 
-## Acknowledgments
-- [Contributor 1]
-- [Contributor 2]
-- [Third-party assets or libraries used]
+## Music Credits
+- "Morning" Kevin MacLeod (incompetech.com)
+Licensed under Creative Commons: By Attribution 4.0 License
+http://creativecommons.org/licenses/by/4.0/
+- https://images.chesscomfiles.com/chess-themes/sounds/_MP3_/default/capture.mp3
 
 ## Changelog
 - v1.0.0 Initial release
