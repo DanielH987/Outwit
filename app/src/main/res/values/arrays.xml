@@ -1,0 +1,108 @@
+<resources>
+    <!-- Reply Preference -->
+    <string-array name="reply_entries">
+        <item>Reply</item>
+        <item>Reply to all</item>
+    </string-array>
+
+    <string-array name="reply_values">
+        <item>reply</item>
+        <item>reply_all</item>
+    </string-array>
+
+    <string-array name="first_player_entries">
+        <item>Dark First</item>
+        <item>Light First</item>
+        <item>Random</item>
+    </string-array>
+    <string-array name="first_player_values">
+        <item>dark_first</item>
+        <item>light_first</item>
+        <item>random</item>
+    </string-array>
+
+    <string-array name="animation_speed_entries">
+        <item>Slow</item>
+        <item>Medium</item>
+        <item>Fast</item>
+    </string-array>
+    <string-array name="animation_speed_values">
+        <item>100</item>
+        <item>50</item>
+        <item>5</item>
+    </string-array>
+
+    <string-array name="language_entries">
+        <item>Français</item>
+        <item>English</item>
+    </string-array>
+    <string-array name="language_values">
+        <item>fr</item>
+        <item>en</item>
+    </string-array>
+
+    <string-array name="chipset_entries">
+        <item>Standard</item>
+        <item>All power chips</item>
+        <item>All normal chips</item>
+    </string-array>
+    <string-array name="chipset_values">
+        <item>standard</item>
+        <item>power</item>
+        <item>normal</item>
+    </string-array>
+
+    <string-array name="chiplayout_entries">
+        <item>Standard</item>
+<!--        <item>Centralized</item>-->
+        <item>Randomized</item>
+    </string-array>
+    <string-array name="chiplayout_values">
+        <item>standard</item>
+<!--        <item>central</item>-->
+        <item>random</item>
+    </string-array>
+
+    <string-array name="player_entries">
+        <item>Dark\'s team</item>
+        <item>Light\'s team</item>
+    </string-array>
+    <string-array name="player_values">
+        <item>dark</item>
+        <item>light</item>
+    </string-array>
+
+    <string-array name="undo_entries">
+        <item>5</item>
+        <item>10</item>
+        <item>None</item>
+    </string-array>
+    <string-array name="undo_values">
+        <item>5</item>
+        <item>10</item>
+        <item>none</item>
+    </string-array>
+
+    <string-array name="theme_entries">
+        <item>Standard</item>
+        <item>Grey</item>
+        <item>Blue</item>
+    </string-array>
+    <string-array name="theme_values">
+        <item>standard</item>
+        <item>grey</item>
+        <item>blue</item>
+    </string-array>
+
+    <string-array name="player_mode_entries">
+        <item>Two human players</item>
+        <item>Human (dark) vs AI (light)</item>
+        <item>Human (light) vs AI (dark)</item>
+    </string-array>
+    <string-array name="player_mode_values">
+        <item>human</item>
+        <item>humanAi</item>
+        <item>aiHuman</item>
+    </string-array>
+
+</resources>

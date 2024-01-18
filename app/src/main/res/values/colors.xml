@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+    <color name="grey">#808080</color>
+    <color name="beige">#DDD2C6</color>
+    <color name="blue">#98C1D9</color>
+    <color name="yellow">#FFFF00</color>
+    <color name="my_primary">#8f4939</color>
+    <color name="my_light_primary">#d75b4b</color>
+    <color name="my_dark_primary">#6c2a1c</color>
+    <color name="my_border">#FF000000</color>
+    <color name="my_primary2">#403D39</color>
+    <color name="my_light_primary2">#CCC5B9</color>
+    <color name="my_dark_primary2">#252422</color>
+    <color name="my_border2">#FFFCF2</color>
+    <color name="my_primary3">#98C1D9</color>
+    <color name="my_light_primary3">#E0FBFC</color>
+    <color name="my_dark_primary3">#3D5A80</color>
+    <color name="my_border3">#293241</color>
+</resources>

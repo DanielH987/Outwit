@@ -1,0 +1,25 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Base application theme. -->
+    <style name="Base.Theme.Outwit" parent="Theme.AppCompat.Light.DarkActionBar">
+        <!-- Customize your light theme here. -->
+        <item name="android:navigationBarColor">@color/my_primary</item>
+        <item name="android:statusBarColor">@color/my_primary</item>
+        <item name="colorPrimary">@color/my_primary</item>
+    </style>
+
+    <style name="Base.Theme.Outwit.Blue" parent="Theme.AppCompat.Light.DarkActionBar">
+        <item name="android:navigationBarColor">@color/my_primary3</item>
+        <item name="android:statusBarColor">@color/my_primary3</item>
+        <item name="colorPrimary">@color/my_primary3</item>
+    </style>
+
+    <style name="Base.Theme.Outwit.Grey" parent="Theme.AppCompat">
+        <item name="android:navigationBarColor">@color/my_primary2</item>
+        <item name="android:statusBarColor">@color/my_primary2</item>
+        <item name="colorPrimary">@color/my_primary2</item>
+    </style>
+
+    <style name="Theme.Outwit" parent="Base.Theme.Outwit" />
+    <style name="Theme.Outwit.Blue" parent="Base.Theme.Outwit.Blue" />
+    <style name="Theme.Outwit.Grey" parent="Base.Theme.Outwit.Grey" />
+</resources>

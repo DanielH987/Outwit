@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:android="http://schemas.android.com/apk/res/android">
+    <PreferenceCategory android:title="@string/general">
+
+<!--        <SwitchPreferenceCompat-->
+<!--            app:key="notifications"-->
+<!--            app:title="@string/notifications"-->
+<!--            app:defaultValue="true"-->
+<!--            app:summary="@string/notifications_summary" />-->
+
+        <SwitchPreferenceCompat
+            app:key="sound_effects"
+            app:title="@string/sound_effects"
+            app:defaultValue="true"
+            app:summary="@string/sound_effects_sum"/>
+
+        <SwitchPreferenceCompat
+            app:key="background_music"
+            app:title="@string/background_music"
+            app:defaultValue="true"
+            app:summary="@string/background_music_sum" />
+
+        <ListPreference
+            app:key="theme"
+            app:title="@string/theme"
+            app:defaultValue="standard"
+            app:entries="@array/theme_entries"
+            app:entryValues="@array/theme_values"
+            app:summary="@string/theme_sum" />
+
+        <ListPreference
+            app:key="animation_speed"
+            app:title="@string/animation_speed"
+            app:defaultValue="5"
+            app:entries="@array/animation_speed_entries"
+            app:entryValues="@array/animation_speed_values"
+            app:summary="@string/animation_speed_sum" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="@string/gamemode">
+        <ListPreference
+            app:key="player_mode"
+            app:title="@string/player_mode"
+            app:defaultValue="human"
+            app:entries="@array/player_mode_entries"
+            app:entryValues="@array/player_mode_values"
+            app:summary="@string/player_mode_sum" />
+
+        <ListPreference
+            app:key="first_player"
+            app:title="@string/first_player"
+            app:defaultValue="random"
+            app:entries="@array/first_player_entries"
+            app:entryValues="@array/first_player_values"
+            app:summary="@string/first_player_sum" />
+
+        <ListPreference
+            app:key="chipset"
+            app:title="@string/chipset"
+            app:defaultValue="standard"
+            app:entries="@array/chipset_entries"
+            app:entryValues="@array/chipset_values"
+            app:summary="@string/chipset_sum" />
+
+        <ListPreference
+            app:key="chiplayout"
+            app:title="@string/chipset_layout"
+            app:defaultValue="standard"
+            app:entries="@array/chiplayout_entries"
+            app:entryValues="@array/chiplayout_values"
+            app:summary="@string/chipset_layout_sum" />
+
+        <ListPreference
+            app:key="rename_player"
+            app:title="@string/rename_player"
+            app:defaultValue="dark"
+            app:entries="@array/player_entries"
+            app:entryValues="@array/player_values"
+            app:summary="@string/rename_player_sum" />
+
+<!--        <Preference-->
+<!--            app:key="undo_moves"-->
+<!--            app:layout="@layout/increment_preference" />-->
+
+        <ListPreference
+            app:key="undo_moves"
+            app:title="@string/undo_moves"
+            app:defaultValue="none"
+            app:entries="@array/undo_entries"
+            app:entryValues="@array/undo_values"
+            app:summary="@string/undo_moves_sum" />
+
+        <SwitchPreferenceCompat
+            app:key="timer"
+            app:title="@string/timer"
+            app:defaultValue="true"
+            app:summary="@string/timer_sum" />
+
+    </PreferenceCategory>
+</PreferenceScreen>

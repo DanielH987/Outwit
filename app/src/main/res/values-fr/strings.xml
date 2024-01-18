@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Outwit</string>
+    <string name="title_activity_preferences">Préférences</string>
+
+    <!-- Preference Titles -->
+    <string name="messages_header">Messages</string>
+    <string name="sync_header">Synchronisation</string>
+
+    <!-- Messages Preferences -->
+    <string name="signature_title">Votre signature</string>
+    <string name="reply_title">Action de réponse par défaut</string>
+
+    <!-- Sync Preferences -->
+    <string name="sync_title">Synchroniser les e-mails périodiquement</string>
+    <string name="attachment_title">Télécharger les pièces jointes entrantes</string>
+    <string name="attachment_summary_on">Télécharger automatiquement les pièces jointes des e-mails entrants</string>
+    <string name="attachment_summary_off">Télécharger les pièces jointes uniquement lorsque demandé manuellement</string>
+
+    <string name="general">Général</string>
+    <string name="settings">Paramètres</string>
+    <string name="sound_settings">À propos des crédits sonores</string>
+    <string name="undo">Aucun mouvement à annuler</string>
+
+    <string name="notifications">Notifications</string>
+    <string name="notifications_summary">Activer ou désactiver les notifications</string>
+    <string name="sound_effects">Effets sonores</string>
+    <string name="sound_effects_sum">Activer ou désactiver les effets sonores.</string>
+    <string name="background_music">Musique de fond</string>
+    <string name="background_music_sum">Activer ou désactiver la musique de fond.</string>
+    <string name="first_player">Qui commence</string>
+    <string name="first_player_sum">Choisir qui commence dans le jeu.</string>
+    <string name="animation_speed">Vitesse de l\'animation</string>
+    <string name="animation_speed_sum">Ajuster la vitesse de l\'animation pour une expérience plus fluide.</string>
+    <string name="language">Langue</string>
+    <string name="language_sum">Sélectionnez votre langue préférée.</string>
+    <string name="about_preference">À propos</string>
+    <string name="about_preference_sum">Afficher les crédits sonores</string>
+    <string name="player_name">Rename player</string>
+    <string name="player_name_sum">Customize your name</string>
+    <string name="rename_player">Renommer votre joueur</string>
+    <string name="rename_player_sum">Personnalisez le nom de votre joueur</string>
+    <string name="undo_moves">Annuler un mouvement</string>
+    <string name="undo_moves_sum">Choisissez de limiter le nombre de mouvements à annuler</string>
+    <string name="timer">Chronomètre</string>
+    <string name="timer_sum">Afficher un chronomètre ou non</string>
+    <string name="theme">Thème</string>
+    <string name="theme_sum">Choisissez un thème</string>
+    <string name="player_mode">Mode de Joueur</string>
+    <string name="player_mode_sum">1 vs 1, IA vs Humain</string>
+
+    <string name="lights_turn">Équipe claire</string>
+    <string name="darks_turn">Équipe foncé</string>
+    <string name="about_button_label">À propos</string>
+    <string name="settings_button_label">Paramètres</string>
+    <string name="play_button_label">Jouer</string>
+    <string name="rules_title">Règles</string>
+    <string name="rules_text">
+        <![CDATA[
+        <p><strong>Soyez le premier à faire glisser vos neuf pions dans votre coin du plateau.</strong></p>
+
+        <p>Les pions sont disposés au milieu du plateau au début. Chaque joueur joue à tour de rôle, <em>un pion</em> dans <u>une seule direction</u>. Un pion régulier peut se déplacer <u>horizontalement</u> ou <u>verticalement</u> uniquement. Un <em>pion de puissance</em> peut se déplacer <strong>en diagonale</strong>. Un pion régulier doit glisser aussi loin qu\'il le peut, s\'arrêtant uniquement lorsqu\'il atteint le bord du plateau, un autre pion ou le coin de l\'adversaire. Un pion de puissance peut s\'arrêter quand il le souhaite, mais doit s\'arrêter pour les mêmes raisons qu\'un pion régulier.</p>
+
+        <p>Une fois dans son coin, aucun pion ne peut revenir dans la zone de jeu. Un pion régulier doit se déplacer horizontalement ou verticalement aussi loin qu\'il le peut dans le coin, un pion de puissance peut se déplacer sur autant de cases que possible dans le coin.</p>
+        ]]>
+    </string>
+
+
+    <string name="gamemode">Mode de jeu</string>
+    <string name="chipset">Préférence de pions</string>
+    <string name="chipset_sum">Options : Standard, Pions de puissance, Pions normales.</string>
+    <string name="chipset_layout">Disposition des pions</string>
+    <string name="chipset_layout_sum">Randomisez la position des pions ou non</string>
+    <string name="exit_game">Vous nous quittez déjà?</string>
+    <string name="exit_game_button1">Quittez</string>
+    <string name="exit_game_button2">Annuler</string>
+</resources>

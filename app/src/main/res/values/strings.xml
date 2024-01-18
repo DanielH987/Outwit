@@ -1,0 +1,77 @@
+<resources>
+    <string name="app_name">Outwit</string>
+    <string name="title_activity_preferences">Preferences</string>
+
+    <!-- Preference Titles -->
+    <string name="messages_header">Messages</string>
+    <string name="sync_header">Sync</string>
+
+    <!-- Messages Preferences -->
+    <string name="signature_title">Your signature</string>
+    <string name="reply_title">Default reply action</string>
+
+    <!-- Sync Preferences -->
+    <string name="sync_title">Sync email periodically</string>
+    <string name="attachment_title">Download incoming attachments</string>
+    <string name="attachment_summary_on">Automatically download attachments for incoming emails
+    </string>
+    <string name="attachment_summary_off">Only download attachments when manually requested</string>
+
+    <string name="general">General</string>
+    <string name="settings">Settings</string>
+    <string name="sound_settings">About Sound Credits</string>
+    <string name="undo">No moves to undo</string>
+
+    <string name="notifications">Notifications</string>
+    <string name="notifications_summary">Enable or disable notifications</string>
+    <string name="sound_effects">Sound Effects</string>
+    <string name="sound_effects_sum">Enable or disable sound effects.</string>
+    <string name="background_music">Background Music</string>
+    <string name="background_music_sum">Toggle background music on or off.</string>
+    <string name="first_player">Who Goes First</string>
+    <string name="first_player_sum">Choose who goes first in the game.</string>
+    <string name="animation_speed">Animation Speed</string>
+    <string name="animation_speed_sum">Adjust the animation speed for a smoother experience.</string>
+    <string name="language">Language</string>
+    <string name="language_sum">Select your preferred language.</string>
+    <string name="about_preference">About</string>
+    <string name="about_preference_sum">View sound credits</string>
+    <string name="player_name">Rename player</string>
+    <string name="player_name_sum">Customize your name</string>
+    <string name="rename_player">Rename player</string>
+    <string name="rename_player_sum">Customize your player\'s name</string>
+    <string name="undo_moves">Undo Moves</string>
+    <string name="undo_moves_sum">Choose to limit the number of moves to undo</string>
+    <string name="timer">Timer</string>
+    <string name="timer_sum">Display timer or not</string>
+    <string name="theme">Theme</string>
+    <string name="theme_sum">Choose a theme</string>
+    <string name="player_mode">Player Mode</string>
+    <string name="player_mode_sum">1 vs 1, AI vs Human</string>
+
+    <string name="lights_turn">Light\'s Turn</string>
+    <string name="darks_turn">Dark\'s Turn</string>
+    <string name="about_button_label">About</string>
+    <string name="settings_button_label">Settings</string>
+    <string name="play_button_label">Play</string>
+    <string name="rules_title">Rules</string>
+    <string name="rules_text">
+        <![CDATA[
+        <p><strong>To be the first to slide all nine of your chips into your own corner of the board.</strong></p>
+
+        <p>The chips are set up in the middle of the board at the start. Each player plays alternately, <em>one chip</em> in <u>one direction only</u>. A regular chip may move <u>horizontally</u> or <u>vertically</u> only. A <em>power chip</em> may move <strong>diagonally</strong>. A regular chip must slide as far as it can go, stopped only by reaching the edge of the board, another chip, or the opponent\'s corner. A power chip can stop whenever it wants but must stop for the same reasons as a regular chip.</p>
+
+        <p>Once inside its corner, no chip can move back into the playing area. A regular chip must move horizontally or vertically as far as it can within the corner, a power chip may move any number of squares within the corner.</p>
+        ]]>
+    </string>
+
+
+    <string name="gamemode">Gamemode</string>
+    <string name="chipset">Chipset Preference</string>
+    <string name="chipset_sum">Options: Standard, Power Chips, Normal Chips.</string>
+    <string name="chipset_layout">Chipset Layout</string>
+    <string name="chipset_layout_sum">Randomize the position of the chips or not</string>
+    <string name="exit_game">You\'re leaving us already?</string>
+    <string name="exit_game_button1">Exit</string>
+    <string name="exit_game_button2">Cancel</string>
+</resources>
