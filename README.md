@@ -9,12 +9,6 @@ In Outwit, each player starts with nine chips placed in the middle of the board.
 ### Objective
 Be the first to get all your chips into your corner.
 
-## Visuals
-<img src="./screenshots/image1.jpg" width="400">
-<img src="./screenshots/image2.jpg" width="400">
-<img src="./screenshots/image3.jpg" width="400">
-<img src="./screenshots/image4.jpg" width="400">
-
 ## Installation
 1. Clone the repository: `git clone https://github.com/DanielH987/Outwit.git`
 2. Navigate to the project directory: `cd outwit`
@@ -44,7 +38,7 @@ Contributions are what make the open-source community such an amazing place to l
 5. Open a Pull Request
 
 ## Contact
-Your Name - [your-email@example.com](mailto:your-email@example.com)
+Your Name - [hootinid@gmail.com](mailto:hootinid@gmail.com)
 
 ## Acknowledgments
 - [Contributor 1]
@@ -57,3 +51,9 @@ Your Name - [your-email@example.com](mailto:your-email@example.com)
 ## FAQs
 **Q: Can I play Outwit offline?**
 A: Yes, Outwit can be played without an internet connection.
+
+## Visuals
+<img src="./screenshots/image1.jpg" width="400">
+<img src="./screenshots/image2.jpg" width="400">
+<img src="./screenshots/image3.jpg" width="400">
+<img src="./screenshots/image4.jpg" width="400">
