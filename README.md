@@ -10,12 +10,10 @@ In Outwit, each player starts with nine chips placed in the middle of the board.
 Be the first to get all your chips into your corner.
 
 ## Visuals
-
 <img src="./screenshots/image1.jpg" width="400">
-
-![Gameplay Screenshot2](./screenshots/image2.jpg)
-![Gameplay Screenshot3](./screenshots/image3.jpg)
-![Gameplay Screenshot4](./screenshots/image4.jpg)
+<img src="./screenshots/image2.jpg" width="400">
+<img src="./screenshots/image3.jpg" width="400">
+<img src="./screenshots/image4.jpg" width="400">
 
 ## Installation
 1. Clone the repository: `git clone https://github.com/DanielH987/Outwit.git`
