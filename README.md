@@ -10,7 +10,9 @@ In Outwit, each player starts with nine chips placed in the middle of the board.
 Be the first to get all your chips into your corner.
 
 ## Visuals
-![Gameplay Screenshot1](./screenshots/image1.jpg)
+
+<img src="./screenshots/image1.jpg" width="500">
+
 ![Gameplay Screenshot2](./screenshots/image2.jpg)
 ![Gameplay Screenshot3](./screenshots/image3.jpg)
 ![Gameplay Screenshot4](./screenshots/image4.jpg)
