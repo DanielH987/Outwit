@@ -11,7 +11,7 @@ Be the first to get all your chips into your corner.
 
 ## Visuals
 
-<img src="./screenshots/image1.jpg" width="500">
+<img src="./screenshots/image1.jpg" width="400">
 
 ![Gameplay Screenshot2](./screenshots/image2.jpg)
 ![Gameplay Screenshot3](./screenshots/image3.jpg)
