@@ -1,5 +1,19 @@
 # Outwit
 
+## Play Now - Test Me
+
+Experience Outwit for yourself by downloading the latest version of the game. Simply download the APK to your Android device, install it, and start playing!
+
+[Download Outwit APK](https://github.com/DanielH987/Outwit/releases/download/APK/Outwit.apk)
+
+### Installation Instructions
+1. Download the APK file to your Android device.
+2. Open the downloaded file. You may need to allow installation from unknown sources. This setting can be found in `Settings > Security` or `Settings > Apps & notifications > Special app access`.
+3. Follow the on-screen instructions to install.
+4. Once installed, open the game and enjoy!
+
+Your feedback and contributions are welcome!
+
 ## Introduction
 Outwit is a strategic mobile game where players aim to slide all nine of their chips into their own corner of the board. The game stands out for its unique gameplay mechanics, combining strategy and foresight.
 
@@ -8,10 +22,6 @@ In Outwit, each player starts with nine chips placed in the middle of the board.
 
 ### Objective
 Be the first to get all your chips into your corner.
-
-## Installation
-1. Clone the repository: `git clone https://github.com/DanielH987/Outwit.git`
-2. Navigate to the project directory: `cd outwit`
 
 ## How to Play
 - Start the game from the main menu by selecting "Play."
