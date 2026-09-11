@@ -6,17 +6,18 @@ This roadmap tracks where Outwit is today and where it is headed. Priorities are
 
 Status: **In Progress**
 
-The app has routing, basic pages, a Zustand store skeleton, and a WebSocket client scaffold. The next milestone is a fully playable two-player game running locally in one browser.
+The app has routing, basic pages, a Zustand store skeleton, a WebSocket client scaffold, and documented rules in [`docs/RULES.md`](docs/RULES.md). The next milestone is a fully playable two-player game running locally in one browser.
 
-## Phase 1 — Define the Game (Next)
+## Phase 1 — Define the Game (In Progress)
 
 Goal: Decide and document what Outwit actually is.
 
-- [ ] Define the board (size, shape, coordinates).
-- [ ] Define the pieces (names, movement abilities, starting positions).
-- [ ] Define the turn structure and win condition.
-- [ ] Document the rules in a single source-of-truth location (e.g., `docs/rules.md` or `src/types/rules.ts`).
-- [ ] Translate the rules into pure TypeScript types and helper functions.
+- [x] Define the board (size, shape, coordinates).
+- [x] Define the pieces (names, movement abilities, starting positions).
+- [x] Document the rules in a single source-of-truth location: [`docs/RULES.md`](docs/RULES.md).
+- [x] Define the win condition: be first to fill your **own** base with all 9 chips.
+- [ ] Resolve the open rules questions below.
+- [ ] Translate the rules into pure TypeScript types and helper functions in `src/engine/`.
 
 > If the rules are not yet known, ask the user. Do not default to chess, checkers, or any existing game.
 
@@ -28,16 +29,15 @@ Goal: Two players can sit at the same device and play a complete game.
 - [ ] Handle clicks/taps to select pieces and target squares.
 - [ ] Validate moves using pure logic in `src/utils/` or `src/engine/`.
 - [ ] Enforce turns (player A / player B).
-- [ ] Detect checkmate / stalemate / win condition and end the game.
+- [ ] Detect game end: win (base filled), stalemate (no legal moves — draw), and threefold repetition (draw).
+- [ ] Add resign and draw-offer flows (local mode).
 
 ## Phase 3 — Game State & History
 
 Goal: The game feels complete from a state perspective.
 
 - [ ] Track move history.
-- [ ] Track captured pieces.
 - [ ] Add a move history panel.
-- [ ] Support resign and draw offer flows in local mode.
 - [ ] Add a timer / clock UI (even if local only).
 
 ## Phase 4 — Polish & Profile
@@ -60,7 +60,10 @@ Goal: Connect to a real backend and enable online play.
 
 ## Open Questions
 
-- What are the exact rules of Outwit?
+Rules: **none** — [`docs/RULES.md`](docs/RULES.md) is fully specified as of v0.6.
+
+Product questions:
+
 - Should the game support AI opponents for solo practice?
 - What time controls should be available (blitz, rapid, untimed)?
 - Should user accounts be anonymous, guest-based, or persistent?
@@ -75,4 +78,4 @@ A PWA where players can:
 - Chat during games.
 - Install the app on mobile and desktop.
 
-For now, focus only on the next item in Phase 1.
+For now, focus on resolving the open rules questions, then encoding the engine.

@@ -13,15 +13,15 @@ Pure scaffold / local playable prototype.
 - Pages and routing are in place.
 - State management is scaffolded.
 - WebSocket client exists but has no real backend yet.
-- There is no board, no rules engine, and no win condition yet.
+- The rules are fully specified in `docs/RULES.md`; there is no board UI, rules engine, or win detection yet.
 
 ## What to Prioritize
 
 When asked to add features, prefer this order:
 
-1. **Define the game** — board representation, pieces, movement rules, win condition.
+1. **Define the game** — the rules are documented in `docs/RULES.md`; next is encoding the board, movement, and win detection as pure functions.
 2. **Build a local two-player board UI** — render the board, handle clicks/taps, validate moves.
-3. **Add local game state** — turns, move history, captured pieces, game-over detection.
+3. **Add local game state** — turns, move history, game-over detection.
 4. **Polish UX** — timers, move history panel, resign/draw UI, basic profile stats.
 5. **Connect multiplayer** — only after local play feels complete.
 
@@ -31,6 +31,7 @@ When asked to add features, prefer this order:
 - **Reusable UI** goes in `src/components/`.
 - **State** lives in `src/stores/` using Zustand. Use the existing stores; create new ones if a feature has cross-component state.
 - **Types** go in `src/types/index.ts`. Keep shared domain types there.
+- **Rules** live in `docs/RULES.md`. It is the source of truth; never invent game behavior. Ask the user before changing or extending the rules.
 - **Game logic** should eventually live in `src/utils/` or a new `src/engine/` directory. Keep it pure and testable.
 - **WebSocket** code lives in `src/services/websocket.ts` and `src/contexts/WebSocketProvider.tsx`. Do not change message types without updating `src/types/index.ts`.
 
@@ -71,6 +72,7 @@ When asked to add features, prefer this order:
 | `src/components/*` | Shared presentational components |
 | `src/stores/*` | Zustand state |
 | `src/types/index.ts` | Shared TypeScript types |
+| `docs/RULES.md` | Game rules source of truth |
 | `src/services/websocket.ts` | WebSocket client singleton |
 | `src/contexts/WebSocketProvider.tsx` | React integration for WebSocket |
 | `src/utils/*` | Pure helpers (IDs, formatting, etc.) |
@@ -78,4 +80,4 @@ When asked to add features, prefer this order:
 
 ## Important Note
 
-Outwit is a custom game. If you are implementing game logic and the rules are unclear, ask the user before inventing them. Do not assume chess, checkers, or any existing game unless told otherwise.
+Outwit is a custom game. `docs/RULES.md` is the complete source of truth. If something there is unclear or seems to conflict, ask the user before inventing behavior. Do not assume chess, checkers, or any existing game.
