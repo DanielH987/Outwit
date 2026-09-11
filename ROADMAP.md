@@ -16,8 +16,8 @@ Goal: Decide and document what Outwit actually is.
 - [x] Define the pieces (names, movement abilities, starting positions).
 - [x] Document the rules in a single source-of-truth location: [`docs/RULES.md`](docs/RULES.md).
 - [x] Define the win condition: be first to fill your **own** base with all 9 chips.
-- [ ] Resolve the open rules questions below.
-- [ ] Translate the rules into pure TypeScript types and helper functions in `src/engine/`.
+- [x] Resolve the open rules questions.
+- [x] Encode the rules as a pure engine with unit tests: `src/engine/` + `src/__tests__/engine/`.
 
 > If the rules are not yet known, ask the user. Do not default to chess, checkers, or any existing game.
 

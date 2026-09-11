@@ -13,7 +13,8 @@ Pure scaffold / local playable prototype.
 - Pages and routing are in place.
 - State management is scaffolded.
 - WebSocket client exists but has no real backend yet.
-- The rules are fully specified in `docs/RULES.md`; there is no board UI, rules engine, or win detection yet.
+- The rules are fully specified in `docs/RULES.md` and encoded as a pure engine in `src/engine/`.
+- There is no board UI or game page integration yet.
 
 ## What to Prioritize
 
@@ -30,9 +31,9 @@ When asked to add features, prefer this order:
 - **Pages** go in `src/pages/`. They handle routing params and compose components.
 - **Reusable UI** goes in `src/components/`.
 - **State** lives in `src/stores/` using Zustand. Use the existing stores; create new ones if a feature has cross-component state.
-- **Types** go in `src/types/index.ts`. Keep shared domain types there.
+- **Types** go in `src/types/index.ts`. Keep shared domain types there; engine types live in `src/engine/types.ts` and are re-exported from `src/types/index.ts`.
 - **Rules** live in `docs/RULES.md`. It is the source of truth; never invent game behavior. Ask the user before changing or extending the rules.
-- **Game logic** should eventually live in `src/utils/` or a new `src/engine/` directory. Keep it pure and testable.
+- **Game logic** lives in `src/engine/` as pure, framework-free functions. Keep it pure and testable; mirror tests in `src/__tests__/engine/`.
 - **WebSocket** code lives in `src/services/websocket.ts` and `src/contexts/WebSocketProvider.tsx`. Do not change message types without updating `src/types/index.ts`.
 
 ## Things to Avoid
@@ -72,6 +73,7 @@ When asked to add features, prefer this order:
 | `src/components/*` | Shared presentational components |
 | `src/stores/*` | Zustand state |
 | `src/types/index.ts` | Shared TypeScript types |
+| `src/engine/*` | Pure game rules engine (types, board, setup, moves, rules) |
 | `docs/RULES.md` | Game rules source of truth |
 | `src/services/websocket.ts` | WebSocket client singleton |
 | `src/contexts/WebSocketProvider.tsx` | React integration for WebSocket |

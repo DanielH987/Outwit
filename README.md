@@ -53,6 +53,7 @@ src/
   pages/          # Route-level page components
   services/       # External service clients (WebSocket, API)
   stores/         # Zustand stores (authStore, gameStore)
+  engine/         # Pure, tested rules engine (board, moves, win/draw detection)
   types/          # TypeScript type definitions
   utils/          # Utility helpers
 ```
@@ -68,7 +69,8 @@ src/
 
 This is a **pure scaffold / local playable prototype**.
 
-- Game rules are documented in [`docs/RULES.md`](docs/RULES.md), but no board or rules engine is implemented yet.
+- Game rules are fully specified in [`docs/RULES.md`](docs/RULES.md) and implemented as a pure, tested engine in `src/engine/`.
+- No board UI or game page exists yet — that is the next milestone.
 - The WebSocket client connects but expects a backend matching the message types in `src/types/index.ts`.
 - Authentication is client-side only (Zustand persist to `localStorage`).
 

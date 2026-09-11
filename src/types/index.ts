@@ -57,3 +57,6 @@ export type ClientMessageType =
   | 'send-chat'
   | 'resign'
   | 'offer-draw';
+
+// Rules-engine domain types (docs/RULES.md). Re-exported so `import type { Position } from '@/types'` works project-wide.
+export type { PlayerId, Position, Chip, BoardState, MoveRequest, GameEndReason, GameResult } from '@/engine/types';
