@@ -19,6 +19,20 @@ import {
   resignationResult,
 } from '@/engine';
 import type { BoardState, GameResult, MoveRequest, PlayerId, Position } from '@/engine';
+import { useStatsStore } from '@/stores/statsStore';
+
+/** Records a finished game in local stats once per finished game. */
+function recordFinishedGame(result: GameResult, elapsedSeconds: Record<PlayerId, number>, moveHistory: MoveRecord[]) {
+  if (result.status !== 'finished' || result.reason === null) return;
+  useStatsStore.getState().addMatch({
+    finishedAt: new Date().toISOString(),
+    winner: result.winner,
+    reason: result.reason,
+    moveCount: moveHistory.length,
+    whiteSeconds: elapsedSeconds.white,
+    blackSeconds: elapsedSeconds.black,
+  });
+}
 
 export interface MoveRecord {
   /** 1-based, full-move number (increments after Black's move, chess-style). */
@@ -112,13 +126,18 @@ export const useLocalGameStore = create<LocalGameState>((set, get) => ({
       notation: formatMove(selectedChipId, chip.position, to),
     };
 
+    const finalMoveHistory = [...moveHistory, record];
+    if (result.status === 'finished') {
+      recordFinishedGame(result, get().elapsedSeconds, finalMoveHistory);
+    }
+
     set({
       state: next,
       selectedChipId: null,
       legalMoves: [],
       positionHistory: [...positionHistory, positionKey(state)],
       result,
-      moveHistory: [...moveHistory, record],
+      moveHistory: finalMoveHistory,
       // Freeze clocks when the game ends.
       clockStartedAt: result.status === 'finished' ? null : get().clockStartedAt,
     });
@@ -127,13 +146,16 @@ export const useLocalGameStore = create<LocalGameState>((set, get) => ({
 
   deselect: () => set({ selectedChipId: null, legalMoves: [] }),
 
-  resign: (player) =>
+  resign: (player) => {
+    const result = resignationResult(player);
+    recordFinishedGame(result, get().elapsedSeconds, get().moveHistory);
     set({
-      result: resignationResult(player),
+      result,
       selectedChipId: null,
       legalMoves: [],
       clockStartedAt: null,
-    }),
+    });
+  },
 
   offerDraw: (player) => {
     const { result } = get();
@@ -144,7 +166,9 @@ export const useLocalGameStore = create<LocalGameState>((set, get) => ({
   acceptDraw: () => {
     const { pendingDrawOfferFrom, result } = get();
     if (pendingDrawOfferFrom === null || result.status !== 'in-progress') return;
-    set({ result: drawByAgreementResult(), pendingDrawOfferFrom: null, clockStartedAt: null });
+    const next = drawByAgreementResult();
+    recordFinishedGame(next, get().elapsedSeconds, get().moveHistory);
+    set({ result: next, pendingDrawOfferFrom: null, clockStartedAt: null });
   },
 
   declineDraw: () => set({ pendingDrawOfferFrom: null }),

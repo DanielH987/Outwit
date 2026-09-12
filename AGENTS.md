@@ -71,7 +71,7 @@ When asked to add features, prefer this order:
 | --------------- | --------------- |
 | `src/pages/*` | Route-level screens |
 | `src/components/*` | Shared presentational components |
-| `src/stores/*` | Zustand state |
+| `src/stores/*` | Zustand state (incl. `localGameStore` for pass-and-play, `statsStore` for local match history) |
 | `src/types/index.ts` | Shared TypeScript types |
 | `src/engine/*` | Pure game rules engine (types, board, setup, moves, rules) |
 | `docs/RULES.md` | Game rules source of truth |

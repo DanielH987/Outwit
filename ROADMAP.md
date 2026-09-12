@@ -2,11 +2,11 @@
 
 This roadmap tracks where Outwit is today and where it is headed. Priorities are ordered to get to a fun, local two-player game first, then expand outward.
 
-## Current Phase: Phase 4 — Polish & Profile
+## Current Phase: Phase 5 — Multiplayer Backend
 
-Status: **In Progress**
+Status: **Next**
 
-The local pass-and-play game is fully playable at `/game/:gameId` with move history, elapsed-time clocks, resign/draw flows, and win/stalemate/repetition detection. The next milestone is UX polish and a useful profile page.
+The local pass-and-play game is fully playable at `/game/:gameId` with move history, clocks, resign/draw, and win/draw detection. Lobby surfaces "Play now" for local games and shows local profile stats. The next milestone is connecting the WebSocket client to a real backend.
 
 ## Phase 1 — Define the Game (In Progress)
 
@@ -40,14 +40,14 @@ Goal: The game feels complete from a state perspective.
 - [x] Add a move history panel (chess.com-style two-column list).
 - [x] Add elapsed-time clocks per player (untimed, informational).
 
-## Phase 4 — Polish & Profile
+## Phase 4 — Polish & Profile (Done)
 
 Goal: Improve UX and add lightweight persistent stats.
 
-- [ ] Improve lobby UI (create/join rooms).
-- [ ] Build out profile page with local stats.
-- [ ] Add responsive styling and touch-friendly interactions.
-- [ ] Improve accessibility (keyboard navigation, ARIA labels).
+- [x] Lobby highlights local pass-and-play ("Play now" / "Resume local game") and defers online rooms to Phase 5.
+- [x] Profile page shows local stats (games, wins, draws) and a match-history list.
+- [x] Board uses semantic roles (`grid`/`gridcell`) with labeled tiles and live status text; remaining a11y polish (full keyboard nav) is optional.
+- [ ] Responsive/touch follow-ups (e.g. larger hit targets) as needed.
 
 ## Phase 5 — Multiplayer Backend
 
