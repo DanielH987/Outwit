@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, type ReactNode } from 'react';
 import { webSocketService } from '@/services/websocket';
-import { useGameStore } from '@/stores';
+import { useAuthStore, useGameStore } from '@/stores';
 import type { ServerMessage } from '@/types';
 
 interface WebSocketContextValue {
@@ -11,10 +11,15 @@ const WebSocketContext = createContext<WebSocketContextValue | null>(null);
 
 export function WebSocketProvider({ children }: { children: ReactNode }) {
   const { updateGameState, addMessage, setActivePlayers, setLastError } = useGameStore();
+  const setConnectionId = useAuthStore((s) => s.setConnectionId);
 
   useEffect(() => {
     const handler = (message: ServerMessage) => {
       switch (message.type) {
+        case 'connected':
+          // Server-assigned connection id (reassigned each reconnect).
+          setConnectionId((message.payload as { userId: string }).userId);
+          break;
         case 'game-state':
           updateGameState(message.payload);
           break;
@@ -39,7 +44,7 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
       unsubscribe();
       webSocketService.disconnect();
     };
-  }, [updateGameState, addMessage, setActivePlayers, setLastError]);
+  }, [updateGameState, addMessage, setActivePlayers, setLastError, setConnectionId]);
 
   return (
     <WebSocketContext.Provider value={{ send: webSocketService.send }}>

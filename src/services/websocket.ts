@@ -8,7 +8,7 @@ interface ImportMetaWithEnv extends ImportMeta {
   readonly env: ImportMetaEnv;
 }
 
-const WS_URL = (import.meta as unknown as ImportMetaWithEnv).env.VITE_WS_URL ?? 'wss://localhost:3001';
+const WS_URL = ((import.meta as unknown as ImportMetaWithEnv).env.VITE_WS_URL ?? 'wss://localhost:3001') + '/ws';
 
 type MessageHandler = (message: ServerMessage) => void;
 

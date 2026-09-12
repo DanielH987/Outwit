@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { Board } from '@/components/Board';
+import { ChatPanel } from '@/components/ChatPanel';
 import { GameClocks } from '@/components/GameClocks';
 import { GameControls } from '@/components/GameControls';
 import { MoveHistoryPanel } from '@/components/MoveHistoryPanel';
@@ -93,17 +94,24 @@ function LocalGameView() {
  */
 function OnlineGameView({ roomId }: { roomId: string }) {
   const { gameState, selectedChipId, lastError } = useGameStore();
-  const { joinRoom, leaveRoom, makeMove, resign: sendResign, offerDraw: sendOfferDraw } = useWebSocketActions();
+  const { joinRoom, leaveRoom, makeMove, sendChat, resign: sendResign, offerDraw: sendOfferDraw, respondDraw } = useWebSocketActions();
   const { username } = useAuthStore();
-  const clientId = useAuthStore((s) => s.userId) ?? 'anon';
+  const connectionId = useAuthStore((s) => s.connectionId);
 
   useEffect(() => {
     joinRoom(roomId);
     return () => leaveRoom(roomId);
   }, [roomId, joinRoom, leaveRoom]);
 
-  const me = gameState?.players.find((p) => p.userId === clientId) ?? null;
+  useEffect(() => {
+    if (!gameState) useGameStore.setState({ selectedChipId: null, lastError: null });
+  }, [gameState]);
+
+  const me = gameState?.players.find((p) => p.userId === connectionId) ?? null;
   const mySide = me?.side ?? null;
+  const pendingDrawFrom = gameState?.pendingDrawFrom ?? null;
+  const pendingFromMe = pendingDrawFrom !== null && pendingDrawFrom === mySide;
+  const pendingFromOpponent = pendingDrawFrom !== null && !pendingFromMe;
 
   const selected = useMemo(() => {
     if (!gameState || !selectedChipId) return null;
@@ -163,8 +171,13 @@ function OnlineGameView({ roomId }: { roomId: string }) {
             <p className="mb-2 font-semibold">Players</p>
             <ul className="space-y-1 text-sm text-slate-300">
               {gameState.players.map((p) => (
-                <li key={p.userId}>
+                <li key={p.userId} className="flex items-center gap-2">
+                  <span
+                    className={['inline-block h-2 w-2 rounded-full', p.connected ? 'bg-emerald-400' : 'bg-slate-600'].join(' ')}
+                    aria-label={p.connected ? 'connected' : 'disconnected'}
+                  />
                   {p.username ?? p.userId} — <span className="text-slate-500">{p.side}</span>
+                  {p.userId === connectionId && <span className="text-accent">(you)</span>}
                 </li>
               ))}
             </ul>
@@ -176,16 +189,37 @@ function OnlineGameView({ roomId }: { roomId: string }) {
               >
                 Resign
               </button>
-              <button
-                type="button"
-                className="flex-1 rounded-lg border border-slate-500 px-3 py-2 text-sm hover:border-accent hover:text-accent"
-                onClick={() => sendOfferDraw(roomId)}
-              >
-                Offer draw
-              </button>
+              {pendingFromOpponent && mySide ? (
+                <>
+                  <button
+                    type="button"
+                    className="flex-1 rounded-lg bg-accent px-3 py-2 text-sm font-semibold text-primary"
+                    onClick={() => respondDraw(roomId, true)}
+                  >
+                    Accept draw
+                  </button>
+                  <button
+                    type="button"
+                    className="flex-1 rounded-lg border border-slate-500 px-3 py-2 text-sm hover:border-red-400 hover:text-red-400"
+                    onClick={() => respondDraw(roomId, false)}
+                  >
+                    Decline
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  className="flex-1 rounded-lg border border-slate-500 px-3 py-2 text-sm hover:border-accent hover:text-accent disabled:opacity-50"
+                  disabled={pendingFromMe}
+                  onClick={() => sendOfferDraw(roomId)}
+                >
+                  Offer draw
+                </button>
+              )}
             </div>
           </div>
           <MoveHistoryPanel history={gameState.moveHistory} />
+          <ChatPanel roomId={roomId} sendChat={sendChat} mySide={mySide} />
         </div>
       </div>
     </main>

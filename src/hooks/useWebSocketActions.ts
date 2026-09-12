@@ -34,5 +34,9 @@ export function useWebSocketActions() {
     send({ type: 'offer-draw', payload: { roomId, userId } });
   };
 
-  return { joinRoom, leaveRoom, makeMove, sendChat, resign, offerDraw };
+  const respondDraw = (roomId: string, accepted: boolean) => {
+    send({ type: 'respond-draw', payload: { roomId, userId, accepted } });
+  };
+
+  return { joinRoom, leaveRoom, makeMove, sendChat, resign, offerDraw, respondDraw };
 }

@@ -47,16 +47,17 @@ Goal: Improve UX and add lightweight persistent stats.
 - [x] Board uses semantic roles (`grid`/`gridcell`) with labeled tiles and live status text; remaining a11y polish (full keyboard nav) is optional.
 - [ ] Responsive/touch follow-ups (e.g. larger hit targets) as needed.
 
-## Phase 5 — Multiplayer Backend (Core Complete)
+## Phase 5 — Multiplayer Backend (In Progress)
 
 Goal: Connect to a real backend and enable online play.
 
 - [x] Define a minimal backend contract using `ServerMessage` and `ClientMessage` types, plus shared payload types.
-- [x] Implement direct room joining (first joiner = White, second = Black, rest spectate).
+- [x] Implement direct room joining by room name (first joiner = White, second = Black, rest spectate).
 - [x] Sync authoritative game state across clients in real time; moves validated by `src/engine/`.
-- [x] Basic rejoin binding (same userId keeps its side). Graceful disconnection / timed reconnection still TODO.
-- [ ] Optional: clock/time-control messages once a time-control rule exists.
-- [ ] Optional: matchmaking, room naming/creation UI.
+- [x] Chat per room.
+- [x] Seats persist across disconnect; reconnection with the same `userId` re-binds to the original side.
+- [ ] Graceful disconnection timer (forfeit/claim-win after N seconds, optional flag draw).
+- [ ] Clock/time-control messages once a time-control rule exists.
 
 ## Open Questions
 

@@ -96,19 +96,27 @@ export interface ConnectedPayload {
   userId: string;
 }
 
+export interface RoomPlayerSummary {
+  userId: string;
+  username: string | null;
+  side: 'white' | 'black' | null;
+  connected: boolean;
+}
+
 export interface RoomUpdatePayload {
   roomId: string;
-  players: Array<{ userId: string; username: string | null; side: 'white' | 'black' | null }>;
-  spectators: Array<{ userId: string; username: string | null }>;
+  players: RoomPlayerSummary[];
+  spectators: Array<{ userId: string; username: string | null; connected: boolean }>;
 }
 
 /** Authoritative game state broadcast to all room participants. */
 export interface GameStatePayload {
   roomId: string;
   board: { chips: Chip[]; sideToMove: PlayerId };
-  players: Array<{ userId: string; username: string | null; side: 'white' | 'black' | null }>;
+  players: RoomPlayerSummary[];
   moveHistory: Array<{ number: number; player: PlayerId; notation: string; chipId: string; from: Position; to: Position }>;
   result: import('@/engine').GameResult;
+  pendingDrawFrom: PlayerId | null;
 }
 
 export interface ErrorPayload {

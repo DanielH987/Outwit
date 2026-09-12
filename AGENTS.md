@@ -14,7 +14,7 @@ Pure scaffold / local playable prototype.
 - State management is Zustand.
 - The rules are fully specified in `docs/RULES.md` and encoded as a pure engine in `src/engine/`.
 - A local pass-and-play game runs at `/game/:gameId` (Board + GameControls components, localGameStore in `src/stores/`).
-- A minimal WebSocket backend lives in `server/index.ts` (`npm run server`); the client connects to `/game/<anything>` for online rooms (anything other than `local`).
+- A WebSocket backend lives in `server/index.ts` (`npm run server`); the client connects to `/game/<anything>` for online rooms (anything other than `local`). Seats persist across reconnects by client-supplied `userId`.
 
 ## What to Prioritize
 

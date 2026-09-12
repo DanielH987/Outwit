@@ -15,7 +15,7 @@ describe('LobbyPage', () => {
     render(<MemoryRouter><LobbyPage /></MemoryRouter>);
     expect(screen.getByRole('heading', { name: /Game Lobby/i })).toBeInTheDocument();
     expect(screen.getAllByRole('link', { name: /Play now/i })[0]).toHaveAttribute('href', '/game/local');
-    expect(screen.getByText(/Online multiplayer is coming in Phase 5/i)).toBeInTheDocument();
+    expect(screen.getByText(/Requires the server/i)).toBeInTheDocument();
   });
 
   it('shows a resume button when a local game is in progress', () => {
