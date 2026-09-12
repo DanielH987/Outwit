@@ -9,7 +9,9 @@
     "preview": "vite preview",
     "test": "vitest",
     "test:ui": "vitest --ui",
-    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0"
+    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "server": "tsx watch server/index.ts",
+    "server:ci": "node server/index.ts"
   },
   "dependencies": {
     "react": "^18.3.1",
@@ -24,6 +26,7 @@
     "@types/node": "^22.5.5",
     "@types/react": "^18.3.6",
     "@types/react-dom": "^18.3.0",
+    "@types/ws": "^8.18.1",
     "@vitejs/plugin-react": "^4.3.1",
     "autoprefixer": "^10.4.20",
     "eslint": "^9.10.0",
@@ -32,9 +35,11 @@
     "jsdom": "^25.0.0",
     "postcss": "^8.4.47",
     "tailwindcss": "^3.4.12",
+    "tsx": "^4.23.13",
     "typescript": "^5.6.2",
     "vite": "^5.4.6",
     "vite-plugin-pwa": "^0.20.5",
-    "vitest": "^2.1.1"
+    "vitest": "^2.1.1",
+    "ws": "^8.21.3"
   }
 }

@@ -11,10 +11,10 @@ Build a local-playable prototype of **Outwit**, a custom strategic turn-based bo
 Pure scaffold / local playable prototype.
 
 - Pages and routing are in place.
-- State management is scaffolded.
-- WebSocket client exists but has no real backend yet.
+- State management is Zustand.
 - The rules are fully specified in `docs/RULES.md` and encoded as a pure engine in `src/engine/`.
 - A local pass-and-play game runs at `/game/:gameId` (Board + GameControls components, localGameStore in `src/stores/`).
+- A minimal WebSocket backend lives in `server/index.ts` (`npm run server`); the client connects to `/game/<anything>` for online rooms (anything other than `local`).
 
 ## What to Prioritize
 
@@ -34,7 +34,7 @@ When asked to add features, prefer this order:
 - **Types** go in `src/types/index.ts`. Keep shared domain types there; engine types live in `src/engine/types.ts` and are re-exported from `src/types/index.ts`.
 - **Rules** live in `docs/RULES.md`. It is the source of truth; never invent game behavior. Ask the user before changing or extending the rules.
 - **Game logic** lives in `src/engine/` as pure, framework-free functions. Keep it pure and testable; mirror tests in `src/__tests__/engine/`.
-- **WebSocket** code lives in `src/services/websocket.ts` and `src/contexts/WebSocketProvider.tsx`. Do not change message types without updating `src/types/index.ts`.
+- **WebSocket** code lives in `src/services/websocket.ts` and `src/contexts/WebSocketProvider.tsx`. Do not change message types without updating `src/types/index.ts`. The backend protocol is implemented by `server/index.ts`.
 
 ## Things to Avoid
 
@@ -77,6 +77,7 @@ When asked to add features, prefer this order:
 | `docs/RULES.md` | Game rules source of truth |
 | `src/services/websocket.ts` | WebSocket client singleton |
 | `src/contexts/WebSocketProvider.tsx` | React integration for WebSocket |
+| `server/index.ts` | Multiplayer WebSocket server (`npm run server`), driven by `src/engine/` |
 | `src/utils/*` | Pure helpers (IDs, formatting, etc.) |
 | `src/__tests__/*` | Tests |
 

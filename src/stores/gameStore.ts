@@ -1,13 +1,18 @@
 import { create } from 'zustand';
-import type { GameRoom, Player, ChatMessage } from '@/types';
+import type { ChatMessage, GameRoom, GameStatePayload, Player } from '@/types';
 
 interface GameState {
   currentRoom: GameRoom | null;
-  gameState: unknown | null;
+  gameState: GameStatePayload | null;
+  selectedChipId: string | null;
+  lastError: string | null;
   messages: ChatMessage[];
   activePlayers: Player[];
   setCurrentRoom: (room: GameRoom | null) => void;
   updateGameState: (state: unknown) => void;
+  /** Selection state for local-style highlighting on the online board. */
+  setSelectedChip: (chipId: string | null) => void;
+  setLastError: (message: string | null) => void;
   addMessage: (message: ChatMessage) => void;
   setActivePlayers: (players: Player[]) => void;
   reset: () => void;
@@ -16,13 +21,23 @@ interface GameState {
 export const useGameStore = create<GameState>((set) => ({
   currentRoom: null,
   gameState: null,
+  selectedChipId: null,
+  lastError: null,
   messages: [],
   activePlayers: [],
   setCurrentRoom: (room) => set({ currentRoom: room }),
-  updateGameState: (state) => set({ gameState: state }),
-  addMessage: (message) =>
-    set((state) => ({ messages: [...state.messages, message] })),
+  updateGameState: (state) => set({ gameState: state as GameStatePayload }),
+  setSelectedChip: (chipId) => set({ selectedChipId: chipId }),
+  setLastError: (message) => set({ lastError: message }),
+  addMessage: (message) => set((state) => ({ messages: [...state.messages, message] })),
   setActivePlayers: (players) => set({ activePlayers: players }),
   reset: () =>
-    set({ currentRoom: null, gameState: null, messages: [], activePlayers: [] }),
+    set({
+      currentRoom: null,
+      gameState: null,
+      selectedChipId: null,
+      lastError: null,
+      messages: [],
+      activePlayers: [],
+    }),
 }));

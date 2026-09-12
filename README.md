@@ -38,6 +38,7 @@ The current codebase is a scaffold that provides:
 ## Scripts
 
 - `npm run dev` — start development server (`http://localhost:5173` by default)
+- `npm run server` — start multiplayer WebSocket server (`ws://localhost:3001/ws`)
 - `npm run build` — type-check and production build
 - `npm run preview` — preview production build
 - `npm test` — run tests in watch mode
@@ -47,15 +48,16 @@ The current codebase is a scaffold that provides:
 
 ```
 src/
-  components/     # Shared UI components (currently Layout)
+  components/     # Shared UI components (Board, GameControls, GameClocks, MoveHistoryPanel)
   contexts/       # React context providers (WebSocketProvider)
   hooks/          # Custom hooks (useWebSocketActions)
   pages/          # Route-level page components
   services/       # External service clients (WebSocket, API)
-  stores/         # Zustand stores (authStore, gameStore)
+  stores/         # Zustand stores (auth, game, local game, stats)
   engine/         # Pure, tested rules engine (board, moves, win/draw detection)
-  types/          # TypeScript type definitions
-  utils/          # Utility helpers
+  types/          # Shared TypeScript types
+
+server/           # WebSocket multiplayer server (tsx), driven by src/engine/
 ```
 
 ## Routes
@@ -72,7 +74,7 @@ This is a **pure scaffold / local playable prototype**.
 - Game rules are fully specified in [`docs/RULES.md`](docs/RULES.md) and implemented as a pure, tested engine in `src/engine/`.
 - A playable local pass-and-play game exists at `/game/:gameId` (board UI, legal-move highlighting, turn taking, move history, elapsed-time clocks, win/stalemate/repetition, resign & draw offer).
 - Lobby offers "Play now" for local games; profile page shows local stats and match history.
-- Next milestone: multiplayer backend (Phase 5 in [`ROADMAP.md`](ROADMAP.md)).
+- Online rooms work via the WebSocket server in `server/` (`npm run server`); client joins `/game/<roomId>` (anything but `local`).
 - The WebSocket client connects but expects a backend matching the message types in `src/types/index.ts`.
 - Authentication is client-side only (Zustand persist to `localStorage`).
 

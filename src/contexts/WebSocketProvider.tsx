@@ -10,7 +10,7 @@ interface WebSocketContextValue {
 const WebSocketContext = createContext<WebSocketContextValue | null>(null);
 
 export function WebSocketProvider({ children }: { children: ReactNode }) {
-  const { updateGameState, addMessage, setActivePlayers } = useGameStore();
+  const { updateGameState, addMessage, setActivePlayers, setLastError } = useGameStore();
 
   useEffect(() => {
     const handler = (message: ServerMessage) => {
@@ -24,6 +24,9 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
         case 'room-update':
           setActivePlayers((message.payload as { players: never }).players);
           break;
+        case 'error':
+          setLastError((message.payload as { message: string }).message);
+          break;
         default:
           break;
       }
@@ -36,7 +39,7 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
       unsubscribe();
       webSocketService.disconnect();
     };
-  }, [updateGameState, addMessage, setActivePlayers]);
+  }, [updateGameState, addMessage, setActivePlayers, setLastError]);
 
   return (
     <WebSocketContext.Provider value={{ send: webSocketService.send }}>

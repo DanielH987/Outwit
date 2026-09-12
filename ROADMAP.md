@@ -2,11 +2,9 @@
 
 This roadmap tracks where Outwit is today and where it is headed. Priorities are ordered to get to a fun, local two-player game first, then expand outward.
 
-## Current Phase: Phase 5 — Multiplayer Backend
+## Current Phase: Phase 5 — Multiplayer Backend (In Progress)
 
-Status: **Next**
-
-The local pass-and-play game is fully playable at `/game/:gameId` with move history, clocks, resign/draw, and win/draw detection. Lobby surfaces "Play now" for local games and shows local profile stats. The next milestone is connecting the WebSocket client to a real backend.
+The local pass-and-play game is fully playable at `/game/:gameId`. The multiplayer backend in `server/index.ts` and the client routing for online rooms are complete. The next milestone is hardening the server (disconnection, reconnection, chat, auth) and wiring clock/time-control messages.
 
 ## Phase 1 — Define the Game (In Progress)
 
@@ -49,14 +47,16 @@ Goal: Improve UX and add lightweight persistent stats.
 - [x] Board uses semantic roles (`grid`/`gridcell`) with labeled tiles and live status text; remaining a11y polish (full keyboard nav) is optional.
 - [ ] Responsive/touch follow-ups (e.g. larger hit targets) as needed.
 
-## Phase 5 — Multiplayer Backend
+## Phase 5 — Multiplayer Backend (Core Complete)
 
 Goal: Connect to a real backend and enable online play.
 
-- [ ] Define a minimal backend contract using `ServerMessage` and `ClientMessage` types.
-- [ ] Implement matchmaking or direct room joining.
-- [ ] Sync game state across clients in real time.
-- [ ] Handle reconnection and disconnection gracefully.
+- [x] Define a minimal backend contract using `ServerMessage` and `ClientMessage` types, plus shared payload types.
+- [x] Implement direct room joining (first joiner = White, second = Black, rest spectate).
+- [x] Sync authoritative game state across clients in real time; moves validated by `src/engine/`.
+- [x] Basic rejoin binding (same userId keeps its side). Graceful disconnection / timed reconnection still TODO.
+- [ ] Optional: clock/time-control messages once a time-control rule exists.
+- [ ] Optional: matchmaking, room naming/creation UI.
 
 ## Open Questions
 
