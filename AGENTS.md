@@ -14,7 +14,7 @@ Pure scaffold / local playable prototype.
 - State management is scaffolded.
 - WebSocket client exists but has no real backend yet.
 - The rules are fully specified in `docs/RULES.md` and encoded as a pure engine in `src/engine/`.
-- There is no board UI or game page integration yet.
+- A local pass-and-play game runs at `/game/:gameId` (Board + GameControls components, localGameStore in `src/stores/`).
 
 ## What to Prioritize
 

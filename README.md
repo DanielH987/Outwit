@@ -70,7 +70,8 @@ src/
 This is a **pure scaffold / local playable prototype**.
 
 - Game rules are fully specified in [`docs/RULES.md`](docs/RULES.md) and implemented as a pure, tested engine in `src/engine/`.
-- No board UI or game page exists yet — that is the next milestone.
+- A playable local pass-and-play game exists at `/game/:gameId` (board UI, legal-move highlighting, turn taking, win/stalemate/repetition, resign & draw offer).
+- Next milestone: move history and polish (Phase 3 in [`ROADMAP.md`](ROADMAP.md)).
 - The WebSocket client connects but expects a backend matching the message types in `src/types/index.ts`.
 - Authentication is client-side only (Zustand persist to `localStorage`).
 

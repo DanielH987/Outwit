@@ -2,11 +2,11 @@
 
 This roadmap tracks where Outwit is today and where it is headed. Priorities are ordered to get to a fun, local two-player game first, then expand outward.
 
-## Current Phase: Pure Scaffold / Local Playable Prototype
+## Current Phase: Phase 3 — Game State & History
 
 Status: **In Progress**
 
-The app has routing, basic pages, a Zustand store skeleton, a WebSocket client scaffold, and documented rules in [`docs/RULES.md`](docs/RULES.md). The next milestone is a fully playable two-player game running locally in one browser.
+The app has routing, basic pages, a Zustand store skeleton, a WebSocket client scaffold, documented rules in [`docs/RULES.md`](docs/RULES.md), a fully tested engine in `src/engine/`, and a local pass-and-play game at `/game/:gameId`. The next milestone is polished game state: move history panel, timers, and richer match UX.
 
 ## Phase 1 — Define the Game (In Progress)
 
@@ -21,16 +21,16 @@ Goal: Decide and document what Outwit actually is.
 
 > If the rules are not yet known, ask the user. Do not default to chess, checkers, or any existing game.
 
-## Phase 2 — Local Two-Player Board
+## Phase 2 — Local Two-Player Board (Done)
 
 Goal: Two players can sit at the same device and play a complete game.
 
-- [ ] Render the board and pieces in `src/components/`.
-- [ ] Handle clicks/taps to select pieces and target squares.
-- [ ] Validate moves using pure logic in `src/utils/` or `src/engine/`.
-- [ ] Enforce turns (player A / player B).
-- [ ] Detect game end: win (base filled), stalemate (no legal moves — draw), and threefold repetition (draw).
-- [ ] Add resign and draw-offer flows (local mode).
+- [x] Render the board and pieces in `src/components/Board.tsx`.
+- [x] Handle clicks/taps to select pieces and target squares.
+- [x] Validate moves using pure logic in `src/engine/`.
+- [x] Enforce turns (White moves first, alternating).
+- [x] Detect game end: win (base filled), stalemate (no legal moves — draw), and threefold repetition (draw).
+- [x] Add resign and draw-offer flows (local mode).
 
 ## Phase 3 — Game State & History
 
