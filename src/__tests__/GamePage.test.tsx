@@ -68,6 +68,7 @@ describe('GamePage local play', () => {
     await user.click(screen.getByRole('button', { name: /Offer draw/i }));
     expect(useLocalGameStore.getState().pendingDrawOfferFrom).toBe('white');
     await user.click(screen.getByRole('button', { name: /Accept/i }));
+    expect(useLocalGameStore.getState().clockStartedAt).toBeNull(); // clocks frozen
     expect(useLocalGameStore.getState().result).toEqual({
       status: 'finished',
       winner: null,
@@ -99,6 +100,55 @@ describe('GamePage local play', () => {
     const store = useLocalGameStore.getState();
     expect(store.state.chips.find((c) => c.id === 'white-1')).toMatchObject({ position: { x: 0, y: 1 } });
     expect(store.state.sideToMove).toBe('white');
-    expect(store.moveCount).toBe(0);
+    expect(store.moveHistory).toHaveLength(0);
+  });
+
+  it('appends move history with full-move numbers', async () => {
+    const user = userEvent.setup();
+    renderGamePage();
+
+    // White move 1: chip 1 from (0,1) slides down to (0,6).
+    await user.click(screen.getByRole('gridcell', { name: 'tile 0,1' }));
+    await user.click(screen.getByRole('gridcell', { name: 'tile 0,6' }));
+
+    // Black move 1: chip 9 at (8,8) slides up to (8,3).
+    await user.click(screen.getByRole('gridcell', { name: 'tile 8,8' }));
+    await user.click(screen.getByRole('gridcell', { name: 'tile 8,3' }));
+
+    const history = useLocalGameStore.getState().moveHistory;
+    expect(history).toHaveLength(2);
+    expect(history[0]).toMatchObject({
+      number: 1,
+      player: 'white',
+      notation: '1(0,1)→(0,6)',
+    });
+    expect(history[1]).toMatchObject({
+      number: 1,
+      player: 'black',
+      notation: '9(8,8)→(8,3)',
+    });
+
+    const panel = screen.getByTestId('move-history');
+    expect(panel).toHaveTextContent('1(0,1)→(0,6)');
+    expect(panel).toHaveTextContent('9(8,8)→(8,3)');
+  });
+
+  it('pauses clocks when the game ends', async () => {
+    const user = userEvent.setup();
+    renderGamePage();
+
+    await user.click(screen.getByRole('gridcell', { name: 'tile 0,1' }));
+    await user.click(screen.getByRole('gridcell', { name: 'tile 0,6' }));
+    await user.click(screen.getByRole('button', { name: /White resigns/i }));
+
+    const store = useLocalGameStore.getState();
+    expect(store.result.status).toBe('finished');
+    expect(store.clockStartedAt).toBeNull();
+  });
+
+  it('shows clocks', () => {
+    renderGamePage();
+    expect(screen.getByTestId('clock-white')).toBeInTheDocument();
+    expect(screen.getByTestId('clock-black')).toBeInTheDocument();
   });
 });

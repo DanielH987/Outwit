@@ -1,6 +1,11 @@
 // Zustand store for a local pass-and-play game, driven by the pure engine
 // in src/engine/. Keeps board state, selection, legal destinations, move
-// history, and match-level actions (resign, draw). See docs/RULES.md.
+// history (for replay + threefold repetition), clocks, and match-level
+// actions (resign, draw). See docs/RULES.md.
+//
+// Clocks are untimed "elapsed" timers: they count up from zero per player.
+// There is no lose-on-time rule (docs/RULES.md has no time control yet);
+// clocks are for information only (chess.com-style "time used").
 
 import { create } from 'zustand';
 import {
@@ -8,11 +13,22 @@ import {
   createInitialState,
   drawByAgreementResult,
   evaluateGameEnd,
+  formatMove,
   getLegalMoves,
   positionKey,
   resignationResult,
 } from '@/engine';
 import type { BoardState, GameResult, MoveRequest, PlayerId, Position } from '@/engine';
+
+export interface MoveRecord {
+  /** 1-based, full-move number (increments after Black's move, chess-style). */
+  number: number;
+  player: PlayerId;
+  chipId: string;
+  from: Position;
+  to: Position;
+  notation: string;
+}
 
 interface LocalGameState {
   state: BoardState;
@@ -21,7 +37,11 @@ interface LocalGameState {
   positionHistory: string[];
   result: GameResult;
   pendingDrawOfferFrom: PlayerId | null;
-  moveCount: number;
+  moveHistory: MoveRecord[];
+  /** Elapsed seconds per player. Untimed, informational only. */
+  elapsedSeconds: Record<PlayerId, number>;
+  /** Unix ms of the last clock tick; used to accumulate per-player time. */
+  clockStartedAt: number | null;
 
   /** Select a chip of the side to move; clicking a legal destination moves there. */
   selectChip: (chipId: string) => void;
@@ -32,17 +52,30 @@ interface LocalGameState {
   offerDraw: (player: PlayerId) => void;
   acceptDraw: () => void;
   declineDraw: () => void;
+  /** Called on each timer tick while the game is in progress. */
+  tick: (nowMs: number) => void;
   reset: () => void;
 }
 
+function freshGame(): Pick<
+  LocalGameState,
+  'state' | 'selectedChipId' | 'legalMoves' | 'positionHistory' | 'result' | 'pendingDrawOfferFrom' | 'moveHistory' | 'elapsedSeconds' | 'clockStartedAt'
+> {
+  return {
+    state: createInitialState(),
+    selectedChipId: null,
+    legalMoves: [],
+    positionHistory: [],
+    result: { status: 'in-progress', winner: null, reason: null },
+    pendingDrawOfferFrom: null,
+    moveHistory: [],
+    elapsedSeconds: { white: 0, black: 0 },
+    clockStartedAt: Date.now(),
+  };
+}
+
 export const useLocalGameStore = create<LocalGameState>((set, get) => ({
-  state: createInitialState(),
-  selectedChipId: null,
-  legalMoves: [],
-  positionHistory: [],
-  result: { status: 'in-progress', winner: null, reason: null },
-  pendingDrawOfferFrom: null,
-  moveCount: 0,
+  ...freshGame(),
 
   selectChip: (chipId) => {
     const { state, result } = get();
@@ -53,8 +86,11 @@ export const useLocalGameStore = create<LocalGameState>((set, get) => ({
   },
 
   moveSelected: (to) => {
-    const { state, selectedChipId, positionHistory, moveCount } = get();
+    const { state, selectedChipId, positionHistory, moveHistory } = get();
     if (!selectedChipId) return false;
+    const chip = state.chips.find((c) => c.id === selectedChipId);
+    if (!chip) return false;
+
     const move: MoveRequest = { chipId: selectedChipId, to };
     let next: BoardState;
     try {
@@ -64,13 +100,27 @@ export const useLocalGameStore = create<LocalGameState>((set, get) => ({
     }
     const mover = state.sideToMove;
     const result = evaluateGameEnd(next, mover, positionHistory);
+
+    // Chess-style full-move numbers: White and Black of the same turn share a number.
+    const number = Math.floor(moveHistory.length / 2) + 1;
+    const record: MoveRecord = {
+      number,
+      player: mover,
+      chipId: selectedChipId,
+      from: { ...chip.position },
+      to: { ...to },
+      notation: formatMove(selectedChipId, chip.position, to),
+    };
+
     set({
       state: next,
       selectedChipId: null,
       legalMoves: [],
       positionHistory: [...positionHistory, positionKey(state)],
       result,
-      moveCount: moveCount + 1,
+      moveHistory: [...moveHistory, record],
+      // Freeze clocks when the game ends.
+      clockStartedAt: result.status === 'finished' ? null : get().clockStartedAt,
     });
     return true;
   },
@@ -78,7 +128,12 @@ export const useLocalGameStore = create<LocalGameState>((set, get) => ({
   deselect: () => set({ selectedChipId: null, legalMoves: [] }),
 
   resign: (player) =>
-    set({ result: resignationResult(player), selectedChipId: null, legalMoves: [] }),
+    set({
+      result: resignationResult(player),
+      selectedChipId: null,
+      legalMoves: [],
+      clockStartedAt: null,
+    }),
 
   offerDraw: (player) => {
     const { result } = get();
@@ -89,19 +144,24 @@ export const useLocalGameStore = create<LocalGameState>((set, get) => ({
   acceptDraw: () => {
     const { pendingDrawOfferFrom, result } = get();
     if (pendingDrawOfferFrom === null || result.status !== 'in-progress') return;
-    set({ result: drawByAgreementResult(), pendingDrawOfferFrom: null });
+    set({ result: drawByAgreementResult(), pendingDrawOfferFrom: null, clockStartedAt: null });
   },
 
   declineDraw: () => set({ pendingDrawOfferFrom: null }),
 
-  reset: () =>
+  tick: (nowMs) => {
+    const { result, clockStartedAt, elapsedSeconds, state } = get();
+    if (result.status === 'finished' || clockStartedAt === null) return;
+    const delta = Math.max(0, Math.floor((nowMs - clockStartedAt) / 1000));
+    if (delta === 0) return;
     set({
-      state: createInitialState(),
-      selectedChipId: null,
-      legalMoves: [],
-      positionHistory: [],
-      result: { status: 'in-progress', winner: null, reason: null },
-      pendingDrawOfferFrom: null,
-      moveCount: 0,
-    }),
+      elapsedSeconds: {
+        ...elapsedSeconds,
+        [state.sideToMove]: elapsedSeconds[state.sideToMove] + delta,
+      },
+      clockStartedAt: nowMs - ((nowMs - clockStartedAt) % 1000),
+    });
+  },
+
+  reset: () => set(freshGame()),
 }));

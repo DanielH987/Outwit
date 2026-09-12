@@ -1,6 +1,8 @@
 import { useCallback } from 'react';
 import { Board } from '@/components/Board';
+import { GameClocks } from '@/components/GameClocks';
 import { GameControls } from '@/components/GameControls';
+import { MoveHistoryPanel } from '@/components/MoveHistoryPanel';
 import { chipAt, samePosition } from '@/engine';
 import { useLocalGameStore } from '@/stores';
 import type { Position } from '@/engine';
@@ -16,6 +18,7 @@ export function GamePage() {
     legalMoves,
     result,
     pendingDrawOfferFrom,
+    moveHistory,
     selectChip,
     moveSelected,
     deselect,
@@ -52,17 +55,27 @@ export function GamePage() {
         Pass-and-play. White (Player 1) moves first. Standard chips must slide as far as possible; the
         power chip (★) may stop anywhere along its line.
       </p>
-      <Board state={state} selectedChipId={selectedChipId} legalMoves={legalMoves} onTileClick={handleTileClick} />
-      <GameControls
-        result={result}
-        sideToMove={state.sideToMove}
-        pendingDrawOfferFrom={pendingDrawOfferFrom}
-        onResign={resign}
-        onOfferDraw={offerDraw}
-        onAcceptDraw={acceptDraw}
-        onDeclineDraw={declineDraw}
-        onReset={reset}
-      />
+      <GameClocks />
+      <div className="grid w-full max-w-4xl gap-4 lg:grid-cols-[2fr_1fr]">
+        <div className="mx-auto w-full max-w-lg lg:max-w-none">
+          <Board state={state} selectedChipId={selectedChipId} legalMoves={legalMoves} onTileClick={handleTileClick} />
+        </div>
+        <div className="flex flex-col gap-4">
+          <GameControls
+            result={result}
+            sideToMove={state.sideToMove}
+            pendingDrawOfferFrom={pendingDrawOfferFrom}
+            onResign={resign}
+            onOfferDraw={offerDraw}
+            onAcceptDraw={acceptDraw}
+            onDeclineDraw={declineDraw}
+            onReset={reset}
+          />
+          <div className="lg:flex-1">
+            <MoveHistoryPanel history={moveHistory} />
+          </div>
+        </div>
+      </div>
     </main>
   );
 }
