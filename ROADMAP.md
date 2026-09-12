@@ -2,11 +2,11 @@
 
 This roadmap tracks where Outwit is today and where it is headed. Priorities are ordered to get to a fun, local two-player game first, then expand outward.
 
-## Current Phase: Phase 3 — Game State & History
+## Current Phase: Phase 4 — Polish & Profile
 
 Status: **In Progress**
 
-The app has routing, basic pages, a Zustand store skeleton, a WebSocket client scaffold, documented rules in [`docs/RULES.md`](docs/RULES.md), a fully tested engine in `src/engine/`, and a local pass-and-play game at `/game/:gameId`. The next milestone is polished game state: move history panel, timers, and richer match UX.
+The local pass-and-play game is fully playable at `/game/:gameId` with move history, elapsed-time clocks, resign/draw flows, and win/stalemate/repetition detection. The next milestone is UX polish and a useful profile page.
 
 ## Phase 1 — Define the Game (In Progress)
 
@@ -32,13 +32,13 @@ Goal: Two players can sit at the same device and play a complete game.
 - [x] Detect game end: win (base filled), stalemate (no legal moves — draw), and threefold repetition (draw).
 - [x] Add resign and draw-offer flows (local mode).
 
-## Phase 3 — Game State & History
+## Phase 3 — Game State & History (Done)
 
 Goal: The game feels complete from a state perspective.
 
-- [ ] Track move history.
-- [ ] Add a move history panel.
-- [ ] Add a timer / clock UI (even if local only).
+- [x] Track move history.
+- [x] Add a move history panel (chess.com-style two-column list).
+- [x] Add elapsed-time clocks per player (untimed, informational).
 
 ## Phase 4 — Polish & Profile
 
