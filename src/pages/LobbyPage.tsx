@@ -54,9 +54,10 @@ export function LobbyPage() {
       <section aria-label="Online rooms" className="mb-10 rounded-xl bg-surface p-6 shadow-lg">
         <h3 className="mb-1 text-xl font-semibold">Online room</h3>
         <p className="mb-4 text-sm text-slate-400">
-          Requires the server (<code className="rounded bg-primary px-1 py-0.5">npm run server</code>).
-          Two players connect to the same room name; first joiner is White. Anyone opening
-          <code className="mx-1 rounded bg-primary px-1 py-0.5">/game/&lt;room&gt;</code> joins.
+          Two players connect to the same room name; the first joiner is White, the second is Black.
+          Share the room name with a friend, or type anything and open
+          <code className="mx-1 rounded bg-primary px-1 py-0.5">/game/&lt;room&gt;</code> on both
+          devices. Rooms are live; the first connection may take up to a minute while the server wakes.
         </p>
         <form
           className="flex flex-col gap-3 sm:flex-row"
