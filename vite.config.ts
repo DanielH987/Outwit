@@ -13,8 +13,8 @@ export default defineConfig({
         name: 'Outwit',
         short_name: 'Outwit',
         description: 'Play strategic board games online.',
-        theme_color: '#0f172a',
-        background_color: '#0f172a',
+        theme_color: '#1C1310',
+        background_color: '#1C1310',
         display: 'standalone',
         start_url: '/',
         icons: [

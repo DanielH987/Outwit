@@ -23,8 +23,8 @@ function ClockBadge({ player, isActive }: ClockBadgeProps) {
     <div
       data-testid={`clock-${player}`}
       className={[
-        'flex flex-col items-center gap-1 rounded-lg px-4 py-2 font-mono',
-        isActive ? 'bg-accent text-primary' : 'bg-primary text-slate-300',
+        'flex flex-col items-center gap-1 rounded-lg px-4 py-2 font-mono shadow-md shadow-black/20',
+        isActive ? 'bg-accent text-primary' : 'bg-primary text-taupe',
       ].join(' ')}
     >
       <span className="text-xs font-semibold uppercase tracking-wide">{label}</span>

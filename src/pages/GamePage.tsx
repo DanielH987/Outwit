@@ -70,7 +70,7 @@ function LocalGameView() {
   return (
     <main className="flex min-h-screen flex-col items-center gap-4 px-4 py-8">
       <h2 className="text-2xl font-bold">Local game</h2>
-      <p className="max-w-md text-center text-sm text-slate-400">
+      <p className="max-w-md text-center text-sm text-taupe">
         Pass-and-play. White (Player 1) moves first. Standard chips must slide as far as possible; the
         power chip (★) may stop anywhere along its line.
       </p>
@@ -169,7 +169,7 @@ function OnlineGameView({ roomId }: { roomId: string }) {
 
   if (!gameState) {
     return (
-      <main className="flex min-h-screen items-center justify-center text-slate-400">
+      <main className="flex min-h-screen items-center justify-center text-taupe">
         <p>Connecting to server...</p>
       </main>
     );
@@ -178,7 +178,7 @@ function OnlineGameView({ roomId }: { roomId: string }) {
   return (
     <main className="flex min-h-screen flex-col items-center gap-4 px-4 py-8">
       <h2 className="text-2xl font-bold">Room {roomId}</h2>
-      <p className="text-sm text-slate-400">
+      <p className="text-sm text-taupe">
         {mySide ? `You are ${mySide}. ` : ''}
         {username ? `Logged in as ${username}. ` : ''}
         {gameState.result.status === 'in-progress'
@@ -186,7 +186,7 @@ function OnlineGameView({ roomId }: { roomId: string }) {
           : 'Game over.'}
       </p>
       {lastError && (
-        <p role="alert" className="rounded-lg bg-red-900/50 px-3 py-1 text-sm text-red-300">
+        <p role="alert" className="rounded-lg bg-danger/25 px-3 py-1 text-sm text-danger">
           {lastError}
         </p>
       )}
@@ -201,16 +201,16 @@ function OnlineGameView({ roomId }: { roomId: string }) {
           />
         </div>
         <div className="flex flex-col gap-4">
-          <div className="rounded-xl bg-surface p-4 text-sm text-slate-200 shadow-lg">
+          <div className="rounded-xl bg-surface p-4 text-sm text-parchment shadow-lg shadow-black/30">
             <p className="mb-2 font-semibold">Players</p>
-            <ul className="space-y-1 text-sm text-slate-300">
+            <ul className="space-y-1 text-sm text-parchment/90">
               {gameState.players.map((p) => (
                 <li key={p.userId} className="flex items-center gap-2">
                   <span
-                    className={['inline-block h-2 w-2 rounded-full', p.connected ? 'bg-emerald-400' : 'bg-slate-600'].join(' ')}
+                    className={['inline-block h-2 w-2 rounded-full', p.connected ? 'bg-success' : 'bg-wood-edge'].join(' ')}
                     aria-label={p.connected ? 'connected' : 'disconnected'}
                   />
-                  {p.username ?? p.userId} — <span className="text-slate-500">{p.side}</span>
+                  {p.username ?? p.userId} — <span className="text-taupe">{p.side}</span>
                   {p.userId === userId && <span className="text-accent">(you)</span>}
                 </li>
               ))}
@@ -218,7 +218,7 @@ function OnlineGameView({ roomId }: { roomId: string }) {
             <div className="mt-4 flex gap-2">
               <button
                 type="button"
-                className="flex-1 rounded-lg border border-slate-500 px-3 py-2 text-sm hover:border-red-400 hover:text-red-400"
+                className="flex-1 rounded-lg border border-wood-edge px-3 py-2 text-sm transition hover:border-danger hover:text-danger"
                 onClick={() => sendResign(roomId)}
               >
                 Resign
@@ -227,14 +227,14 @@ function OnlineGameView({ roomId }: { roomId: string }) {
                 <>
                   <button
                     type="button"
-                    className="flex-1 rounded-lg bg-accent px-3 py-2 text-sm font-semibold text-primary"
+                    className="flex-1 rounded-lg bg-accent px-3 py-2 text-sm font-semibold text-primary transition hover:bg-accent-hover"
                     onClick={() => respondDraw(roomId, true)}
                   >
                     Accept draw
                   </button>
                   <button
                     type="button"
-                    className="flex-1 rounded-lg border border-slate-500 px-3 py-2 text-sm hover:border-red-400 hover:text-red-400"
+                    className="flex-1 rounded-lg border border-wood-edge px-3 py-2 text-sm transition hover:border-danger hover:text-danger"
                     onClick={() => respondDraw(roomId, false)}
                   >
                     Decline
@@ -243,7 +243,7 @@ function OnlineGameView({ roomId }: { roomId: string }) {
               ) : (
                 <button
                   type="button"
-                  className="flex-1 rounded-lg border border-slate-500 px-3 py-2 text-sm hover:border-accent hover:text-accent disabled:opacity-50"
+                  className="flex-1 rounded-lg border border-wood-edge px-3 py-2 text-sm transition hover:border-accent hover:text-accent disabled:opacity-50"
                   disabled={pendingFromMe}
                   onClick={() => sendOfferDraw(roomId)}
                 >

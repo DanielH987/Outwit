@@ -50,15 +50,15 @@ export function GameControls({
   const message = resultText(result);
 
   return (
-    <div className="flex w-full max-w-lg flex-col gap-3 rounded-xl bg-surface p-4 text-slate-200 shadow-lg">
+    <div className="flex w-full max-w-lg flex-col gap-3 rounded-xl bg-surface p-4 text-parchment shadow-lg shadow-black/30">
       <div className="flex items-center justify-between">
-        <span className="text-sm font-semibold uppercase tracking-wide text-slate-400">
+        <span className="text-sm font-semibold uppercase tracking-wide text-taupe">
           {finished ? 'Game over' : `${PLAYER_LABEL[sideToMove]} to move`}
         </span>
         <button
           type="button"
           onClick={onReset}
-          className="rounded-lg border border-slate-500 px-3 py-1 text-xs font-semibold transition hover:border-accent hover:text-accent"
+          className="rounded-lg border border-wood-edge px-3 py-1 text-xs font-semibold transition hover:border-accent hover:text-accent"
         >
           New local game
         </button>
@@ -77,14 +77,14 @@ export function GameControls({
             <button
               type="button"
               onClick={onAcceptDraw}
-              className="rounded bg-accent px-3 py-1 font-semibold text-primary"
+              className="rounded bg-accent px-3 py-1 font-semibold text-primary transition hover:bg-accent-hover"
             >
               Accept
             </button>
             <button
               type="button"
               onClick={onDeclineDraw}
-              className="rounded border border-slate-500 px-3 py-1 font-semibold"
+              className="rounded border border-wood-edge px-3 py-1 font-semibold transition hover:border-parchment"
             >
               Decline
             </button>
@@ -97,21 +97,21 @@ export function GameControls({
           <button
             type="button"
             onClick={() => onResign('white')}
-            className="flex-1 rounded-lg border border-slate-500 px-3 py-2 text-sm transition hover:border-red-400 hover:text-red-400"
+            className="flex-1 rounded-lg border border-wood-edge px-3 py-2 text-sm transition hover:border-danger hover:text-danger"
           >
             White resigns
           </button>
           <button
             type="button"
             onClick={() => onOfferDraw(sideToMove)}
-            className="flex-1 rounded-lg border border-slate-500 px-3 py-2 text-sm transition hover:border-accent hover:text-accent"
+            className="flex-1 rounded-lg border border-wood-edge px-3 py-2 text-sm transition hover:border-accent hover:text-accent"
           >
             Offer draw
           </button>
           <button
             type="button"
             onClick={() => onResign('black')}
-            className="flex-1 rounded-lg border border-slate-500 px-3 py-2 text-sm transition hover:border-red-400 hover:text-red-400"
+            className="flex-1 rounded-lg border border-wood-edge px-3 py-2 text-sm transition hover:border-danger hover:text-danger"
           >
             Black resigns
           </button>

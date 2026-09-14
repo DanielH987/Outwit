@@ -28,22 +28,22 @@ export function LobbyPage() {
       <h2 className="mb-6 text-3xl font-bold">Game Lobby</h2>
 
       {/* Pass-and-play is always available — one device, two players. */}
-      <section aria-label="Local pass-and-play" className="mb-10 rounded-xl bg-surface p-6 shadow-lg">
+      <section aria-label="Local pass-and-play" className="mb-10 rounded-xl bg-surface p-6 shadow-lg shadow-black/30">
         <h3 className="mb-1 text-xl font-semibold">Local pass-and-play</h3>
-        <p className="mb-4 text-sm text-slate-400">
+        <p className="mb-4 text-sm text-taupe">
           Two players, one device. White moves first and slides chips home to the top-right base;
           black races to the bottom-left.
         </p>
         <div className="flex gap-3">
           <Link
             to="/game/local"
-            className="rounded-lg bg-accent px-6 py-3 font-semibold text-primary transition hover:bg-sky-300"
+            className="rounded-lg bg-accent px-6 py-3 font-semibold text-primary transition hover:bg-accent-hover"
           >
             {localInProgress ? 'Resume local game' : 'Play now'}
           </Link>
           <Link
             to="/profile/guest"
-            className="rounded-lg border border-slate-500 px-6 py-3 font-semibold text-slate-200 transition hover:border-accent hover:text-accent"
+            className="rounded-lg border border-wood-edge px-6 py-3 font-semibold text-parchment transition hover:border-accent hover:text-accent"
           >
             View profile
           </Link>
@@ -51,9 +51,9 @@ export function LobbyPage() {
       </section>
 
       {/* Online multiplayer: run `npm run server`, then join any room name. */}
-      <section aria-label="Online rooms" className="mb-10 rounded-xl bg-surface p-6 shadow-lg">
+      <section aria-label="Online rooms" className="mb-10 rounded-xl bg-surface p-6 shadow-lg shadow-black/30">
         <h3 className="mb-1 text-xl font-semibold">Online room</h3>
-        <p className="mb-4 text-sm text-slate-400">
+        <p className="mb-4 text-sm text-taupe">
           Two players connect to the same room name; the first joiner is White, the second is Black.
           Share the room name with a friend, or type anything and open
           <code className="mx-1 rounded bg-primary px-1 py-0.5">/game/&lt;room&gt;</code> on both
@@ -69,11 +69,11 @@ export function LobbyPage() {
             value={roomName}
             onChange={(e) => setRoomName(e.target.value)}
             placeholder="Room name"
-            className="flex-1 rounded-lg bg-primary px-3 py-2 text-sm text-slate-200 outline-none placeholder:text-slate-500 focus:ring-2 focus:ring-accent"
+            className="flex-1 rounded-lg bg-primary px-3 py-2 text-sm text-parchment outline-none placeholder:text-taupe focus:ring-2 focus:ring-accent"
           />
           <button
             type="submit"
-            className="rounded-lg bg-accent px-6 py-3 font-semibold text-primary transition hover:bg-sky-300"
+            className="rounded-lg bg-accent px-6 py-3 font-semibold text-primary transition hover:bg-accent-hover"
           >
             Join online room
           </button>

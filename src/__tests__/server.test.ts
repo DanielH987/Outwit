@@ -94,7 +94,7 @@ describe('multiplayer server', () => {
       afterB = await b.next('game-state');
     }
     expect((afterB.payload as any).board.sideToMove).toBe('white');
-    expect((afterB.payload as any).moveHistory.map((m: any) => m.notation)).toEqual(['1(0,1)→(0,6)', '9(8,8)→(8,3)']);
+    expect((afterB.payload as any).moveHistory.map((m: any) => m.notation)).toEqual(['1 a9→a4', '9 i2→i7']);
 
     a.close();
     b.close();

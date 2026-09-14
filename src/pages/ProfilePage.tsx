@@ -27,7 +27,7 @@ export function ProfilePage() {
   return (
     <main className="mx-auto max-w-2xl px-4 py-8">
       <h2 className="mb-1 text-2xl font-bold">{username}</h2>
-      <p className="mb-6 text-sm text-slate-400">Local pass-and-play stats (this device only, until multiplayer arrives).</p>
+      <p className="mb-6 text-sm text-taupe">Local pass-and-play stats (this device only, until multiplayer arrives).</p>
 
       <section aria-label="Local stats" className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatCard label="Games" value={total} />
@@ -39,7 +39,7 @@ export function ProfilePage() {
       <section aria-label="Match history">
         <h3 className="mb-3 text-lg font-semibold">Match history</h3>
         {matches.length === 0 ? (
-          <p className="rounded-xl bg-surface p-6 text-center text-sm text-slate-400">
+          <p className="rounded-xl bg-surface p-6 text-center text-sm text-taupe shadow-lg shadow-black/30">
             No games yet. Play a local game from the lobby.
           </p>
         ) : (
@@ -47,8 +47,8 @@ export function ProfilePage() {
             {[...matches].reverse().map((match, i) => (
               <li key={`${match.finishedAt}-${i}`} className="flex items-center justify-between rounded-lg bg-surface px-4 py-3 text-sm">
                 <span className="font-semibold">{resultLabel(match)}</span>
-                <span className="text-slate-400">{REASON_LABELS[match.reason]}</span>
-                <span className="font-mono text-xs text-slate-500">
+                <span className="text-taupe">{REASON_LABELS[match.reason]}</span>
+                <span className="font-mono text-xs text-taupe/80">
                   {new Date(match.finishedAt).toLocaleString()} · {match.moveCount} moves · W {formatDuration(match.whiteSeconds)} / B {formatDuration(match.blackSeconds)}
                 </span>
               </li>
@@ -64,7 +64,7 @@ function StatCard({ label, value }: { label: string; value: number }) {
   return (
     <div className="rounded-lg bg-surface p-4 text-center">
       <div className="text-2xl font-bold text-accent">{value}</div>
-      <div className="text-xs uppercase tracking-wide text-slate-400">{label}</div>
+      <div className="text-xs uppercase tracking-wide text-taupe">{label}</div>
     </div>
   );
 }

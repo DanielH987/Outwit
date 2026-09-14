@@ -17,7 +17,7 @@ interface MoveHistoryPanelProps {
 export function MoveHistoryPanel({ history, onHighlight, highlightedMove }: MoveHistoryPanelProps) {
   if (history.length === 0) {
     return (
-      <div className="w-full rounded-xl bg-surface p-4 text-sm text-slate-400 shadow-lg" data-testid="move-history">
+      <div className="w-full rounded-xl bg-surface p-4 text-sm text-taupe shadow-lg shadow-black/30" data-testid="move-history">
         No moves yet.
       </div>
     );
@@ -38,7 +38,7 @@ export function MoveHistoryPanel({ history, onHighlight, highlightedMove }: Move
           type="button"
           className={[
             'rounded px-1 text-left transition',
-            isHighlighted ? 'bg-amber-300/25 text-amber-100' : 'hover:bg-slate-700',
+            isHighlighted ? 'bg-accent/30 text-parchment' : 'hover:bg-wood-edge/60',
           ].join(' ')}
           onMouseEnter={() => onHighlight?.(move)}
           onMouseLeave={() => onHighlight?.(null)}
@@ -53,10 +53,10 @@ export function MoveHistoryPanel({ history, onHighlight, highlightedMove }: Move
   };
 
   return (
-    <div className="w-full max-h-64 overflow-y-auto rounded-xl bg-surface p-4 shadow-lg" data-testid="move-history">
-      <table className="w-full text-left text-sm text-slate-200">
+    <div className="w-full max-h-64 overflow-y-auto rounded-xl bg-surface p-4 shadow-lg shadow-black/30" data-testid="move-history">
+      <table className="w-full text-left text-sm text-parchment">
         <thead>
-          <tr className="text-xs uppercase tracking-wide text-slate-500">
+          <tr className="text-xs uppercase tracking-wide text-taupe">
             <th className="w-8 pb-2 font-semibold">#</th>
             <th className="pb-2 font-semibold">White</th>
             <th className="pb-2 font-semibold">Black</th>
@@ -64,10 +64,10 @@ export function MoveHistoryPanel({ history, onHighlight, highlightedMove }: Move
         </thead>
         <tbody>
           {rows.map((row) => (
-            <tr key={row.number} className="border-t border-slate-700">
-              <td className="py-1.5 font-mono text-slate-500">{row.number}</td>
+            <tr key={row.number} className="border-t border-wood-edge">
+              <td className="py-1.5 font-mono text-taupe">{row.number}</td>
               {cell(row.white)}
-              {cell(row.black, 'text-slate-300')}
+              {cell(row.black, 'text-parchment/80')}
             </tr>
           ))}
         </tbody>

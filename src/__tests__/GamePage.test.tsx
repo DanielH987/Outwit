@@ -33,7 +33,7 @@ describe('GamePage local play', () => {
     renderGamePage();
 
     // white-1 sits at (0,1); click its tile.
-    await user.click(screen.getByRole('gridcell', { name: 'tile 0,1' }));
+    await user.click(screen.getByRole('gridcell', { name: 'tile a9' }));
     expect(useLocalGameStore.getState().selectedChipId).toBe('white-1');
     expect(useLocalGameStore.getState().legalMoves).toEqual([{ x: 0, y: 6 }]);
   });
@@ -42,8 +42,8 @@ describe('GamePage local play', () => {
     const user = userEvent.setup();
     renderGamePage();
 
-    await user.click(screen.getByRole('gridcell', { name: 'tile 0,1' }));
-    await user.click(screen.getByRole('gridcell', { name: 'tile 0,6' }));
+    await user.click(screen.getByRole('gridcell', { name: 'tile a9' }));
+    await user.click(screen.getByRole('gridcell', { name: 'tile a4' }));
 
     const store = useLocalGameStore.getState();
     expect(store.state.chips.find((c) => c.id === 'white-1')).toMatchObject({ position: { x: 0, y: 6 } });
@@ -57,7 +57,7 @@ describe('GamePage local play', () => {
     renderGamePage();
 
     await user.click(screen.getByRole('button', { name: /White resigns/i }));
-    await user.click(screen.getByRole('gridcell', { name: 'tile 0,1' }));
+    await user.click(screen.getByRole('gridcell', { name: 'tile a9' }));
     expect(useLocalGameStore.getState().selectedChipId).toBeNull();
   });
 
@@ -93,8 +93,8 @@ describe('GamePage local play', () => {
     const user = userEvent.setup();
     renderGamePage();
 
-    await user.click(screen.getByRole('gridcell', { name: 'tile 0,1' }));
-    await user.click(screen.getByRole('gridcell', { name: 'tile 0,6' }));
+    await user.click(screen.getByRole('gridcell', { name: 'tile a9' }));
+    await user.click(screen.getByRole('gridcell', { name: 'tile a4' }));
     await user.click(screen.getByRole('button', { name: /New local game/i }));
 
     const store = useLocalGameStore.getState();
@@ -108,37 +108,37 @@ describe('GamePage local play', () => {
     renderGamePage();
 
     // White move 1: chip 1 from (0,1) slides down to (0,6).
-    await user.click(screen.getByRole('gridcell', { name: 'tile 0,1' }));
-    await user.click(screen.getByRole('gridcell', { name: 'tile 0,6' }));
+    await user.click(screen.getByRole('gridcell', { name: 'tile a9' }));
+    await user.click(screen.getByRole('gridcell', { name: 'tile a4' }));
 
     // Black move 1: chip 9 at (8,8) slides up to (8,3).
-    await user.click(screen.getByRole('gridcell', { name: 'tile 8,8' }));
-    await user.click(screen.getByRole('gridcell', { name: 'tile 8,3' }));
+    await user.click(screen.getByRole('gridcell', { name: 'tile i2' }));
+    await user.click(screen.getByRole('gridcell', { name: 'tile i7' }));
 
     const history = useLocalGameStore.getState().moveHistory;
     expect(history).toHaveLength(2);
     expect(history[0]).toMatchObject({
       number: 1,
       player: 'white',
-      notation: '1(0,1)→(0,6)',
+      notation: '1 a9→a4',
     });
     expect(history[1]).toMatchObject({
       number: 1,
       player: 'black',
-      notation: '9(8,8)→(8,3)',
+      notation: '9 i2→i7',
     });
 
     const panel = screen.getByTestId('move-history');
-    expect(panel).toHaveTextContent('1(0,1)→(0,6)');
-    expect(panel).toHaveTextContent('9(8,8)→(8,3)');
+    expect(panel).toHaveTextContent('1 a9→a4');
+    expect(panel).toHaveTextContent('9 i2→i7');
   });
 
   it('pauses clocks when the game ends', async () => {
     const user = userEvent.setup();
     renderGamePage();
 
-    await user.click(screen.getByRole('gridcell', { name: 'tile 0,1' }));
-    await user.click(screen.getByRole('gridcell', { name: 'tile 0,6' }));
+    await user.click(screen.getByRole('gridcell', { name: 'tile a9' }));
+    await user.click(screen.getByRole('gridcell', { name: 'tile a4' }));
     await user.click(screen.getByRole('button', { name: /White resigns/i }));
 
     const store = useLocalGameStore.getState();
