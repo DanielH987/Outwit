@@ -69,11 +69,12 @@ Evidence gathered before planning; re-verify if stale.
 | Production bundle dials localhost | `grep wss://localhost dist/assets/*.js` matches; `VITE_WS_URL` unset (`npx vercel@latest env ls --project outwit` → none) |
 | Vercel project | name `outwit`, latest prod `https://outwit-one.vercel.app`, Node 24.x, alias `outwit-one.vercel.app` |
 | Deploys are CLI-only | `vercel inspect` has no GitHub commit metadata; no `.vercel/` locally |
-| Server OOM crash loop (fixed 2026-09-14) | Render free tier (~512 MB RAM) running `tsx server/index.ts` OOMs after ~100 s (`FATAL ERROR: Ineffective mark-compacts near heap limit ... JavaScript heap out of memory`); Render restarts every ~1–2 min with no error output. **Fix:** bundle server to `server/dist/index.js` (`esbuild server/start.ts --bundle --packages=external`), run with `node server/dist/index.js`. Build command: `npm ci && npm run build:server`. Logs in Render show start/stop without error — that's the signature. |
-| Server ignores host `PORT` | `server/index.ts:79` reads only `OUTWIT_PORT ?? 3001` |
-| Raw WS server, no HTTP response | `server/index.ts:356` `new WebSocketServer({ port, path: '/ws' })` → PaaS health checks may fail |
-| Local online default likely wrong | `src/services/websocket.ts:11` defaults to TLS `wss://localhost:3001` + `/ws`, while `README.md` documents `ws://localhost:3001/ws` |
-| Server tests | `src/__tests__/server.test.ts` (port 3456), `serverHardening.test.ts` (3457), `serverForfeit.test.ts` (3458) call `startServer(PORT)` and `wss.close()` |
+| Server OOM crash loop (fixed 2026-09-14) | Render free tier ran `tsx server/index.ts`; `tsx` keeps TS sources + esbuild in memory and OOMed after ~100 s (`FATAL ERROR: Ineffective mark-compacts near heap limit … JavaScript heap out of memory`). Render restarted every ~1–2 min. **Fix:** bundle with esbuild (`npm run build:server` → `server/dist/index.js`, runtime `node server/dist/index.js`); Render build command is now `npm ci && npm run build:server`. Post-fix: stable — heap ~11 MB, no restarts. Diagnostic aid: `server/start.ts` logs `[outwit-server] starting/exiting/…` on signals/crashes and `/stats` (HTTP) reports rooms/players/moves/heap. |
+| Server ignores host `PORT` (fixed) | Now `Number(process.env.PORT ?? process.env.OUTWIT_PORT ?? 3001)` |
+| Raw WS server, no HTTP response (fixed) | Now `node:http` server returns `200 ok` on `/` + JSON stats on `/stats`; WS at `/ws` via `{ server, path: '/ws' }`, binds `0.0.0.0` |
+| Local online default (fixed) | `src/services/websocket.ts` now defaults to `ws://localhost:3001` and strips trailing `/`; appends `/ws` once |
+| Server tests (fixed) | All three server test files use `server.close()` (new `RunningServer { wss, httpServer, close }` return) |
+| Server tests | `src/__tests__/server.test.ts` (3456), `serverHardening.test.ts` (3457), `serverForfeit.test.ts` (3458) |
 | Quality gates green | 65 tests pass; `npm run lint` has 1 intentional warning; `npm run build` clean |
 | CLI access | `npx vercel@latest` authed as `danielh987`; `render` (v2.28.0) authed as `hootinid@gmail.com` |
 | Render workspace | `My Workspace` exists but is not set; run `render workspace set` first |
