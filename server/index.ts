@@ -359,9 +359,28 @@ export interface RunningServer {
   close: () => void;
 }
 
+/** Current room/snapshot counts for diagnostics. */
+function serverStats() {
+  let players = 0;
+  let spectators = 0;
+  let moves = 0;
+  for (const room of rooms.values()) {
+    players += room.state.players.length;
+    spectators += room.state.spectators.length;
+    moves += room.state.moveHistory.length;
+  }
+  return { rooms: rooms.size, players, spectators, moves, heapMB: Math.round(process.memoryUsage().heapUsed / 1024 / 1024) };
+}
+
 export function startServer(port = PORT): RunningServer {
   // HTTP server so PaaS health checks (web services probe an HTTP path) get a 200.
-  const httpServer = createServer((_req, res) => {
+  // Also serves /stats for diagnostics.
+  const httpServer = createServer((req, res) => {
+    if (req.url === '/stats') {
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end(JSON.stringify(serverStats()));
+      return;
+    }
     res.writeHead(200, { 'content-type': 'text/plain' });
     res.end('ok');
   });
