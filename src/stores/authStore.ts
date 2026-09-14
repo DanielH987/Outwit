@@ -1,10 +1,12 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import { generateId } from '@/utils/id';
 
 interface AuthState {
   /** Stable client-generated identity; used as the server seat id so a
-   *  reconnect re-binds to the same side. Persisted in localStorage. */
+   *  reconnect re-binds to the same side. Stored per-tab in sessionStorage so
+   *  two tabs of the same browser are two different players, while a refresh
+   *  inside a tab keeps its seat. */
   userId: string;
   username: string | null;
   isAuthenticated: boolean;
@@ -34,7 +36,10 @@ export const useAuthStore = create<AuthState>()(
           isAuthenticated: false,
         }),
     }),
-    { name: 'outwit-auth', version: 1,
+    {
+      name: 'outwit-auth',
+      storage: createJSONStorage(() => sessionStorage),
+      version: 1,
       migrate: (persisted) => {
         const state = (persisted ?? {}) as Partial<AuthState>;
         return {

@@ -145,4 +145,37 @@ describe('multiplayer hardening', () => {
     a.closeNow();
     b.closeNow();
   });
+
+  it('a late close from a replaced socket does not detach the new connection', async () => {
+    const roomId = 'replace';
+    const a = await connect();
+    a.send('join-room', { roomId, userId: a.userId, username: 'A' });
+    await a.nextBy('room-update');
+
+    const b1 = await connect();
+    b1.send('join-room', { roomId, userId: b1.userId, username: 'B' });
+    await b1.nextBy('room-update', (p) => p.players.length === 2);
+
+    // A second socket re-binds the same seat (tab refresh / reconnect).
+    const b2 = await connect();
+    b2.send('join-room', { roomId, userId: b1.userId, username: 'B' });
+    await b2.nextBy('room-update');
+
+    // The old socket's close arrives afterwards.
+    b1.closeNow();
+    await new Promise((r) => setTimeout(r, 200));
+
+    // White moves; the new socket must still receive broadcasts...
+    a.send('make-move', { roomId, userId: a.userId, move: { chipId: 'white-1', to: { x: 0, y: 6 } } });
+    const state = await b2.nextBy('game-state', (p) => p.board.chips.find((c: any) => c.id === 'white-1').position.y === 6);
+    expect((state.payload as any).board.chips.find((c: any) => c.id === 'white-1').position).toEqual({ x: 0, y: 6 });
+
+    // ...and the replaced socket may not act.
+    b1.send('make-move', { roomId, userId: b1.userId, move: { chipId: 'black-1', to: { x: 0, y: 5 } } });
+    const blocked = await b2.nextBy('game-state', (p) => p.board.chips.find((c: any) => c.id === 'black-1').position.y === 5).then(() => false).catch(() => true);
+    expect(blocked).toBe(true);
+
+    a.closeNow();
+    b2.closeNow();
+  });
 });

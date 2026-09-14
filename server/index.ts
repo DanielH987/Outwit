@@ -235,32 +235,55 @@ function joinRoom(client: ClientInfo, payload: JoinRoomPayload) {
     return;
   }
 
-  if (room.state.players.length === 0) {
-    room.state.players.push({ userId: seatId, username: client.username, side: 'white', connected: true });
-  } else if (room.state.players.length === 1) {
-    room.state.players.push({ userId: seatId, username: client.username, side: 'black', connected: true });
-  } else {
-    room.state.spectators.push({ userId: seatId, username: client.username, side: null, connected: true });
+  const existingSpectator = room.state.spectators.find((s) => s.userId === seatId);
+  if (existingSpectator) {
+    room.spectators.set(seatId, client);
+    existingSpectator.connected = true;
+    existingSpectator.username = client.username ?? existingSpectator.username;
+    client.userId = seatId;
+    broadcastRoomUpdate(room);
+    broadcastState(room);
+    return;
   }
 
   client.userId = seatId;
-  room.players.set(seatId, client);
+  if (room.state.players.length === 0) {
+    room.state.players.push({ userId: seatId, username: client.username, side: 'white', connected: true });
+    room.players.set(seatId, client);
+  } else if (room.state.players.length === 1) {
+    room.state.players.push({ userId: seatId, username: client.username, side: 'black', connected: true });
+    room.players.set(seatId, client);
+  } else {
+    room.state.spectators.push({ userId: seatId, username: client.username, side: null, connected: true });
+    room.spectators.set(seatId, client);
+  }
+
   broadcastRoomUpdate(room);
   broadcastState(room);
 }
 
 function removeClientFromRoom(room: Room, client: ClientInfo) {
-  const player = room.state.players.find((p) => p.userId === client.userId);
-  if (player) player.connected = false;
+  const isCurrentPlayer = room.players.get(client.userId) === client;
+  const isCurrentSpectator = room.spectators.get(client.userId) === client;
 
-  room.state.spectators = room.state.spectators.filter((s) => s.userId !== client.userId);
-  room.players.delete(client.userId);
-  room.spectators.delete(client.userId);
+  // A late close from a socket that was already replaced by a reconnect must
+  // not detach the successor. Without this, a refresh could freeze the new
+  // socket: it would stop receiving broadcasts while still acting as a player.
+  if (!isCurrentPlayer && !isCurrentSpectator) return;
+
+  if (isCurrentPlayer) {
+    const player = room.state.players.find((p) => p.userId === client.userId);
+    if (player) player.connected = false;
+    room.players.delete(client.userId);
+  }
+  if (isCurrentSpectator) {
+    room.spectators.delete(client.userId);
+    room.state.spectators = room.state.spectators.filter((s) => s.userId !== client.userId);
+  }
 
   broadcastRoomUpdate(room);
   // Also broadcast game-state so clients see the connection-status change.
-  broadcastState(room);
-  // Rooms persist while anyone holds a seat (even if disconnected), so a
+  broadcastState(room);  // Rooms persist while anyone holds a seat (even if disconnected), so a
   // reconnect can re-bind. Rooms are only dropped when nobody ever joined.
   if (room.state.players.length === 0 && room.state.spectators.length === 0) {
     clearForfeitTimer(room);
@@ -317,8 +340,22 @@ function resign(room: Room, client: ClientInfo) {
   broadcastState(room);
 }
 
+/** True if this socket is the current binding for its seat in the room. */
+function isCurrentBinding(room: Room, client: ClientInfo): boolean {
+  return room.players.get(client.userId) === client || room.spectators.get(client.userId) === client;
+}
+
 function handleMessage(client: ClientInfo, message: ClientMessage) {
   const room = client.roomId ? rooms.get(client.roomId) : undefined;
+
+  // A socket that has been replaced by a newer reconnect is no longer bound to
+  // the room and must not act: its view is frozen, so letting it move would
+  // apply phantom moves it cannot see. join-room/leave-room still pass so the
+  // socket can rebind or exit cleanly.
+  if (room && !isCurrentBinding(room, client) && message.type !== 'join-room' && message.type !== 'leave-room') {
+    error(client, 'This session was replaced by a newer connection.');
+    return;
+  }
 
   switch (message.type) {
     case 'join-room':
