@@ -135,10 +135,10 @@ M1 implementation notes: `src/services/websocket.ts` normalizes `VITE_WS_URL` (s
   - A WS client connects to `ws://localhost:3001/ws` and receives `{ "type": "connected", ... }`.
 - `PORT=4010 npm run start:server` binds 4010.
 
-### M3 — Deploy Server to Render
+### M3 — Deploy Server to Render (Done)
 
-- [ ] `render workspace set "My Workspace"` (or by workspace id from `render workspaces list`).
-- [ ] Create the web service. Preferred (CLI, non-interactive):
+- [x] `render workspace set "My Workspace"` (workspace is `tea-cvf60sl2ng1s73d28feg`).
+- [x] Service created via CLI (exact command below, from this plan):
 
   ```bash
   render services create \
@@ -156,64 +156,29 @@ M1 implementation notes: `src/services/websocket.ts` normalizes `VITE_WS_URL` (s
     --output json --confirm
   ```
 
-  Notes:
-  - Region: pick the closest to the user; `oregon` is a reasonable default.
-  - If `services create` fails because Render needs repo access, fall back to the Render dashboard: **New > Web Service**, connect `DanielH987/Outwit` (installing the Render GitHub App if prompted), set the same build/start commands, plan `free`, region, env var, and health check path. Then continue with the CLI for deploys/logs.
-  - Public repo: the Render GitHub App may still be required for auto-deploy (M6); initial creation via dashboard covers it.
+  As-deployed values: **service id `srv-dajpo9m7bikc73d1ge8g`**, **URL `https://outwit-server.onrender.com`**, plan free, region oregon, start `npm run start:server`, health check `/`. Initial deploy (`dep-dajpo9u7bikc73d1gfs0`, commit `ecae023`) built and went **live**.
 
-- [ ] Capture the service ID and URL:
+  > If reproducing: if `services create` fails because Render needs repo access, create via dashboard (**New > Web Service**, connect `DanielH987/Outwit`, same build=start commands, plan free, region, env var, health check `/`), then use the CLI for deploys/logs.
 
-  ```bash
-  render services --output json
-  ```
+- [x] Captured ID/URL from `render services --output json` (above). Deploy completed on creation; when re-triggering later use `render deploys create <service-id> --wait`.
+- [x] Verified live: `curl -i https://outwit-server.onrender.com/` → 200; WebSocket to `wss://outwit-server.onrender.com/ws` immediately receives `{"type":"connected","payload":{"userId":"user-1"}}`; logs show `Outwit WebSocket server listening on 0.0.0.0:10000/ws` and `Your service is live` (Render port = 10000 via `PORT`).
 
-  The service URL is `https://<name>.onrender.com`.
+**Verify (for future deployments):** HTTP 200 from `/`, successful WSS handshake on `/ws`, and `render logs -r srv-dajpo9m7bikc73d1ge8g --limit 50` shows the startup line and no crashes.
 
-- [ ] Trigger and watch a deploy if creation did not auto-deploy:
+### M4 — Wire Vercel to the Server (Done)
 
-  ```bash
-  render deploys create <service-id> --wait
-  ```
+- [x] Linked the local repo: `npx vercel@latest link --yes --project outwit` → `.vercel/project.json` (project id `prj_NqkKqMVgI3OtatkX5GPggWhxVPlV`, org `team_2rBniaFDKSyszaBpK79FSW0V`). Note: `vercel link` also created `.env.local` (with an OIDC token) and added `.env*` to `.gitignore`.
+- [x] Added the env var: `printf 'wss://outwit-server.onrender.com' | npx vercel@latest env add VITE_WS_URL production` (type: Config, environment: Production).
+- [x] Redeployed production: `npx vercel@latest --prod --yes` → deployment `https://outwit-cd5dbud8o-danielh987s-projects.vercel.app`, aliased to `https://outwit-one.vercel.app` (19 s).
 
-- [ ] Verify the server is live (Render's first build takes a few minutes):
-
-  ```bash
-  curl -i https://<service>.onrender.com/          # 200 ok
-  npx wscat -c wss://<service>.onrender.com/ws     # prints connected, then JSON heartbeats of your own messages
-  ```
-
-  `wscat` is optional; any WS client works. First connection after idle may take 30-60 s on the free plan (cold start).
-
-**Verify:** HTTP 200 from `/`, successful WSS handshake on `/ws`, and `render logs -r <service-id> --limit 50` shows the startup line and no crashes.
-
-### M4 — Wire Vercel to the Server
-
-- [ ] Link the local repo to the existing project (creates `.vercel/`):
-
-  ```bash
-  npx vercel@latest link --yes --project outwit
-  ```
-
-- [ ] Add the production env var (no trailing slash; client appends `/ws`):
-
-  ```bash
-  printf 'wss://<service>.onrender.com' | npx vercel@latest env add VITE_WS_URL production
-  ```
-
-- [ ] Redeploy production (Vite env vars are build-time; an env change alone does not rebuild):
-
-  ```bash
-  npx vercel@latest --prod
-  ```
-
-- [ ] Confirm the deployed bundle points at Render, not localhost. Find the bundle hash from the live HTML, then:
+- [x] Confirmed the deployed bundle uses Render, not localhost:
 
   ```bash
   curl -s https://outwit-one.vercel.app/ | grep -o '/assets/[^"]*\.js'
   curl -s https://outwit-one.vercel.app/assets/<hash>.js | grep -o 'wss://[a-z0-9.-]*' | sort -u
   ```
 
-  Expected: the Render hostname. No `wss://localhost`.
+  Observed: `wss://outwit-server.onrender.com` only; no `wss://localhost`. Also all deep links now return 200 (`/`, `/game/local`, `/lobby`, `/profile/Alice`).
 
 ### M5 — End-to-End Verification
 
