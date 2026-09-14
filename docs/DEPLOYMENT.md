@@ -72,9 +72,9 @@ Evidence gathered before planning; re-verify if stale.
 
 ## Milestones
 
-### M1 — Frontend Production Fixes
+### M1 — Frontend Production Fixes (Done)
 
-- [ ] Add `vercel.json` at the repo root with an SPA fallback:
+- [x] Add `vercel.json` at the repo root with an SPA fallback:
 
   ```json
   {
@@ -84,49 +84,49 @@ Evidence gathered before planning; re-verify if stale.
 
   Vercel serves real files before applying rewrites, so `/assets/*`, `/sw.js`, `/manifest.webmanifest`, and `/icon-*.png` are unaffected.
 
-- [ ] Fix `src/services/websocket.ts`:
+- [x] Fix `src/services/websocket.ts`:
   - Default to `ws://localhost:3001` (not `wss://localhost:3001`) for local dev.
-  - Normalize `VITE_WS_URL`: strip trailing slashes, append `/ws` once (accept configs with or without `/ws`). Suggested:
+  - Normalize `VITE_WS_URL`: strip trailing slashes, append `/ws` once (accept configs with or without `/ws`). As implemented:
 
     ```ts
     const raw = import.meta.env.VITE_WS_URL ?? 'ws://localhost:3001';
     const base = raw.replace(/\/+$/, '');
-    export const WS_URL = base.endsWith('/ws') ? base : `${base}/ws`;
+    const WS_URL = base.endsWith('/ws') ? base : `${base}/ws`;
     ```
 
-    The file currently casts `import.meta` through a local interface; simplify to `import.meta.env.VITE_WS_URL` if type support allows (there is no `src/vite-env.d.ts` today, so add one with `/// <reference types="vite/client" />` or keep the cast).
+  - `import.meta.env` types come from the new `src/vite-env.d.ts` (`/// <reference types="vite/client" />`).
 
-- [ ] Add `.vercel` to `.gitignore` (the CLI creates it on `vercel link`).
+- [x] Add `.vercel` to `.gitignore` (the CLI creates it on `vercel link`).
+
+M1 implementation notes: `src/services/websocket.ts` normalizes `VITE_WS_URL` (strips trailing slashes, appends `/ws` once, defaults to `ws://localhost:3001`) and uses `import.meta.env` typed via a new `src/vite-env.d.ts` (`/// <reference types="vite/client" />`).
 
 **Verify:**
 - `npm test && npm run lint && npm run build` pass.
 - `npm run server` + `npm run dev`, open `http://localhost:5173/game/local` and an online room; the browser connects to `ws://localhost:3001/ws`.
 - After M4, `curl -I https://outwit-one.vercel.app/game/local` returns 200.
 
-### M2 — Server Production-Readiness
+### M2 — Server Production-Readiness (Done)
 
-- [ ] `package.json`:
+- [x] `package.json`:
   - Move `ws` and `tsx` from `devDependencies` to `dependencies`.
   - Add `"start:server": "tsx server/index.ts"`.
-  - Keep `"server": "tsx watch server/index.ts"` and `"server:ci": "node server/index.ts"` (or update `server:ci` to use tsx if it should work on Node 24).
+  - Removed broken `"server:ci": "node server/index.ts"` (Node 24 ESM cannot resolve extensionless engine imports; `tsx` is the production runtime).
 
-- [ ] `server/index.ts`:
+- [x] `server/index.ts`:
   - Port: `Number(process.env.PORT ?? process.env.OUTWIT_PORT ?? 3001)` so Render's injected `PORT` works; explicit `startServer(port)` argument still overrides for tests.
-  - Replace `new WebSocketServer({ port, path: '/ws' })` with a `node:http` server:
-    - HTTP requests (health checks) get `200 ok` (any path is fine; keep it simple and also useful for `--health-check-path /`).
-    - Attach `new WebSocketServer({ server: httpServer, path: '/ws' })`.
+  - Replaced `new WebSocketServer({ port, path: '/ws' })` with a `node:http` server:
+    - HTTP requests get `200 ok` (any path; works with `--health-check-path /`).
+    - Attached `new WebSocketServer({ server: httpServer, path: '/ws' })`.
     - `httpServer.listen(port, '0.0.0.0')`.
-  - Change `startServer(port)` to return `{ wss, httpServer, close() }`, where `close()` closes both the WebSocket server and the HTTP server (and clears any pending forfeit timers if convenient).
-  - Keep the `export function startServer` signature, the run-as-main guard (`process.argv[1]?.endsWith('index.ts')`), and `OUTWIT_FORFEIT_SECONDS` behavior.
-  - Update the startup log to include the actual bound port.
+  - `startServer(port)` now returns `{ wss, httpServer, close() }` (new type `RunningServer`).
+  - Kept the `export function startServer` signature, the run-as-main guard, and `OUTWIT_FORFEIT_SECONDS` behavior.
+  - Startup log includes the bound port/host.
 
-- [ ] Update the three server test files to use the new close shape (e.g. `const server = startServer(PORT)` … `server.close()`): `src/__tests__/server.test.ts`, `src/__tests__/serverHardening.test.ts`, `src/__tests__/serverForfeit.test.ts`.
+- [x] Updated the three server test files to `const server = startServer(PORT)` … `server.close()`: `src/__tests__/server.test.ts`, `src/__tests__/serverHardening.test.ts`, `src/__tests__/serverForfeit.test.ts`.
 
-- [ ] Fix `README.md`:
-  - Scripts section: mention `npm run start:server`.
-  - Env vars section: `VITE_WS_URL` defaults to `ws://localhost:3001`; the client appends `/ws`.
+- [x] Fixed `README.md`: added `npm run start:server`, corrected the `VITE_WS_URL` default (`ws://localhost:3001`, client appends `/ws`).
 
-- [ ] (Optional hardening) Add `server/tsconfig.json` and reference it from `tsconfig.json` so `npm run build` type-checks `server/`. Only do this if `tsc -b` stays green; if it complicates the build, skip and note why in the commit message.
+- [ ] (Optional hardening) Add `server/tsconfig.json` and reference it from `tsconfig.json` so `npm run build` type-checks `server/`. Skipped: server is not in the current `tsc -b` references and introducing it changes the build graph; tests exercise the server through Vitest and pass. Revisit if the server grows.
 
 **Verify:**
 - `npm test` (all 65 pass), `npm run lint`, `npm run build`.

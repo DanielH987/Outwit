@@ -34,14 +34,14 @@ function connect(): Promise<{ ws: WebSocket; userId: string; take: (type: string
 }
 
 describe('disconnection-forfeit timer', () => {
-  let wss: ReturnType<typeof startServer>;
+  let server: ReturnType<typeof startServer>;
 
   beforeAll(() => {
-    wss = startServer(PORT);
+    server = startServer(PORT);
   });
 
   afterAll(() => {
-    wss.close();
+    server.close();
   });
 
   it('connected player wins when opponent disconnects and the grace period elapses', async () => {

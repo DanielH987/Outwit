@@ -12,6 +12,7 @@
 // Types: shared in src/types/index.ts and src/engine/*. See docs/RULES.md.
 
 import { WebSocketServer, WebSocket } from 'ws';
+import { createServer, type Server as HttpServer } from 'node:http';
 import {
   applyMove,
   createInitialState,
@@ -76,7 +77,7 @@ interface Room {
 const rooms = new Map<string, Room>();
 let nextUserSuffix = 1;
 
-const PORT = Number(process.env.OUTWIT_PORT ?? 3001);
+const PORT = Number(process.env.PORT ?? process.env.OUTWIT_PORT ?? 3001);
 
 /** Seconds after which a disconnected seat forfeits. Configurable via env. */
 function forfeitSeconds(): number {
@@ -352,8 +353,20 @@ function handleMessage(client: ClientInfo, message: ClientMessage) {
   }
 }
 
-export function startServer(port = PORT) {
-  const wss = new WebSocketServer({ port, path: '/ws' });
+export interface RunningServer {
+  wss: WebSocketServer;
+  httpServer: HttpServer;
+  close: () => void;
+}
+
+export function startServer(port = PORT): RunningServer {
+  // HTTP server so PaaS health checks (web services probe an HTTP path) get a 200.
+  const httpServer = createServer((_req, res) => {
+    res.writeHead(200, { 'content-type': 'text/plain' });
+    res.end('ok');
+  });
+
+  const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
 
   wss.on('connection', (ws) => {
     const userId = `user-${nextUserSuffix++}`;
@@ -380,10 +393,19 @@ export function startServer(port = PORT) {
     });
   });
 
-  return wss;
+  httpServer.listen(port, '0.0.0.0');
+
+  return {
+    wss,
+    httpServer,
+    close() {
+      wss.close();
+      httpServer.close();
+    },
+  };
 }
 
 if (process.argv[1] && process.argv[1].endsWith('index.ts')) {
   startServer();
-  console.log(`Outwit WebSocket server listening on ws://localhost:${PORT}/ws`);
+  console.log(`Outwit WebSocket server listening on 0.0.0.0:${PORT}/ws (http health: /)`);
 }

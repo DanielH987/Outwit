@@ -51,14 +51,14 @@ async function connect(): Promise<TestClient> {
 }
 
 describe('multiplayer hardening', () => {
-  let wss: ReturnType<typeof startServer>;
+  let server: ReturnType<typeof startServer>;
 
   beforeAll(() => {
-    wss = startServer(PORT);
+    server = startServer(PORT);
   });
 
   afterAll(() => {
-    wss.close();
+    server.close();
   });
 
   it('chat broadcasts to all room participants', async () => {

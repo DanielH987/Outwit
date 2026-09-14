@@ -38,7 +38,8 @@ The current codebase is a scaffold that provides:
 ## Scripts
 
 - `npm run dev` — start development server (`http://localhost:5173` by default)
-- `npm run server` — start multiplayer WebSocket server (`ws://localhost:3001/ws`)
+- `npm run server` — start multiplayer WebSocket server in watch mode (`ws://localhost:3001/ws`)
+- `npm run start:server` — production-style server start (`tsx server/index.ts`); honors `PORT` (Render) / `OUTWIT_PORT` / 3001, and answers HTTP health checks with `200 ok`
 - `npm run build` — type-check and production build
 - `npm run preview` — preview production build
 - `npm test` — run tests in watch mode
@@ -88,7 +89,7 @@ The local pass-and-play prototype is **complete** — the game is fully playable
 
 ## Environment Variables
 
-- `VITE_WS_URL` — WebSocket server URL (defaults to `wss://localhost:3001`).
+- `VITE_WS_URL` — WebSocket server URL (defaults to `ws://localhost:3001`; the client appends `/ws` automatically, trailing slashes are normalized).
 
 ## Testing
 

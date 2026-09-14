@@ -54,14 +54,14 @@ function connect(): Promise<TestClient> {
 }
 
 describe('multiplayer server', () => {
-  let wss: ReturnType<typeof startServer>;
+  let server: ReturnType<typeof startServer>;
 
   beforeAll(() => {
-    wss = startServer(PORT);
+    server = startServer(PORT);
   });
 
   afterAll(() => {
-    wss.close();
+    server.close();
   });
 
   it('assigns sides (white then black) and broadcasts alternating moves', async () => {

@@ -1,14 +1,10 @@
 import type { ClientMessage, ServerMessage } from '@/types';
 
-interface ImportMetaEnv {
-  readonly VITE_WS_URL?: string;
-}
-
-interface ImportMetaWithEnv extends ImportMeta {
-  readonly env: ImportMetaEnv;
-}
-
-const WS_URL = ((import.meta as unknown as ImportMetaWithEnv).env.VITE_WS_URL ?? 'wss://localhost:3001') + '/ws';
+const raw: string | undefined = import.meta.env?.VITE_WS_URL as string | undefined;
+// Default for local dev; production sets VITE_WS_URL (build-time).
+// Strip trailing slashes; append /ws once (accept values with or without it).
+const base = (raw && raw.length > 0 ? raw : 'ws://localhost:3001').replace(/\/+$/, '');
+const WS_URL = base.endsWith('/ws') ? base : `${base}/ws`;
 
 type MessageHandler = (message: ServerMessage) => void;
 
