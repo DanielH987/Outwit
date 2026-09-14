@@ -13,6 +13,11 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
   const { updateGameState, addMessage, setActivePlayers, setLastError } = useGameStore();
   const setConnectionId = useAuthStore((s) => s.setConnectionId);
 
+  // `this` is bound so consumers can pass `send` around without the class
+  // instance (it used to be `webSocketService.send`, which crashed with
+  // "Cannot read properties of undefined (reading 'socket')").
+  const send: WebSocketContextValue['send'] = webSocketService.send.bind(webSocketService);
+
   useEffect(() => {
     const handler = (message: ServerMessage) => {
       switch (message.type) {
@@ -47,7 +52,7 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
   }, [updateGameState, addMessage, setActivePlayers, setLastError, setConnectionId]);
 
   return (
-    <WebSocketContext.Provider value={{ send: webSocketService.send }}>
+    <WebSocketContext.Provider value={{ send }}>
       {children}
     </WebSocketContext.Provider>
   );

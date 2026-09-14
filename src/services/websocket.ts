@@ -16,7 +16,12 @@ class WebSocketService {
   connect() {
     if (this.socket?.readyState === WebSocket.OPEN) return;
 
-    this.socket = new WebSocket(WS_URL);
+    try {
+      this.socket = new WebSocket(WS_URL);
+    } catch {
+      this.reconnectTimeout = setTimeout(() => this.connect(), 3000);
+      return;
+    }
 
     this.socket.onmessage = (event) => {
       const message = JSON.parse(event.data) as ServerMessage;
@@ -38,8 +43,12 @@ class WebSocketService {
   }
 
   send(message: ClientMessage) {
-    if (this.socket?.readyState === WebSocket.OPEN) {
-      this.socket.send(JSON.stringify(message));
+    try {
+      if (this.socket?.readyState === WebSocket.OPEN) {
+        this.socket.send(JSON.stringify(message));
+      }
+    } catch {
+      // Drop the message rather than crash if the socket is mid-teardown.
     }
   }
 
