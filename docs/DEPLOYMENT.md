@@ -1,6 +1,15 @@
 # Outwit — Deployment Plan
 
-**Status:** Planned, not yet implemented. This document is the handoff spec for the deployment phase; any agent should be able to resume from the current milestone without prior chat context.
+**Status:** Implemented through M5 (scripted smoke). M1–M4 complete and pushed; M5's automated checks pass; remaining M5 items are interactive human checks; M6 optional. This document is the handoff spec for the deployment phase; any agent should be able to resume from the current milestone without prior chat context.
+
+## Handoff Summary (read first)
+
+- **Live frontend:** `https://outwit-one.vercel.app` (Vercel project `outwit`, CLI-linked at `.vercel/project.json`).
+- **Live server:** `https://outwit-server.onrender.com` (Render service `outwit-server`, id `srv-dajpo9m7bikc73d1ge8g`, free plan, Oregon, `ws` path `/ws`, health `/`). Free tier sleeps after ~15 min idle.
+- **Env wiring:** `VITE_WS_URL=wss://outwit-server.onrender.com` on Vercel (production); server on Render reads `PORT=10000`.
+- **Remaining work:** M5 interactive human checks (two-browser game, reconnect, forfeit-on-disconnect) and optional M6 (auto-deploy via Render GitHub App, custom domain, keep-alive, persistence).
+
+**How to resume:** find the first unchecked milestone below; implement; verify with that milestone's checks; update checkbox; commit with a milestone message. Work on `main`.
 
 **Goal:** Outwit fully deployed and playable online:
 
@@ -182,14 +191,16 @@ M1 implementation notes: `src/services/websocket.ts` normalizes `VITE_WS_URL` (s
 
 ### M5 — End-to-End Verification
 
-- [ ] Local gates: `npm test` (65), `npm run lint`, `npm run build`.
-- [ ] Deep links: `curl -I https://outwit-one.vercel.app/game/local` → 200; open `/lobby` and `/profile/<name>` directly in a browser.
-- [ ] Local play works from the deployed site (`/game/local`).
-- [ ] Online play: on two devices/browsers, open the same `/game/<room>`; confirm seats (white/black), moves, chat, draw offer, and resign.
-- [ ] Reconnect: refresh one client mid-game; it re-binds the same seat (same `localStorage` `userId`).
-- [ ] Forfeit: close one client; the other sees the disconnect and wins after ~60 s (`OUTWIT_FORFEIT_SECONDS=60`).
-- [ ] Browser devtools network tab shows a WSS connection to the Render host; no console errors.
-- [ ] Refresh a deep link while the PWA service worker is active; if a stale bundle is suspected, hard refresh once (`registerType: 'autoUpdate'` is configured).
+- [x] Local gates: `npm test` (65), `npm run lint` (1 intentional WebSocketProvider warning), `npm run build` — green as of commit `646f40c`.
+- [x] Deep links return 200: `/`, `/game/local`, `/lobby`, `/profile/Alice` (verified with `curl -I`/`curl -s -w`).
+- [x] Live server reachable: `curl -i https://outwit-server.onrender.com/` → 200; WSS handshake returns `connected`.
+- [x] Deployed bundle points at Render (no localhost); see M4.
+- [x] **Scripted online smoke (agent):** two simulated WebSocket clients joined a fresh room on production: A white / B black, chat round-trip, illegal move rejected (`Illegal move.`), A resigns → B sees `{"status":"finished","winner":"black","reason":"resignation"}`. Script: `outwit-smoke.mjs` (temp, deleted after run). **PASS.**
+- [ ] **Interactive (human):** two devices/browsers, same `/game/<room>` — seats, moves, chat, draw offer/accept, resign all sync.
+- [ ] **Interactive (human):** refresh one client mid-game → same seat re-binds (same `localStorage` `userId`).
+- [ ] **Interactive (human):** close one client → opponent wins after ~60 s (`OUTWIT_FORFEIT_SECONDS=60`).
+- [ ] Browser devtools network tab shows WSS to `outwit-server.onrender.com`; no console errors.
+- [ ] PWA install/refresh behaves (hard refresh once if stale; `registerType: 'autoUpdate'`).
 
 **Verify:** all boxes above checked; report the live room URL and any failures.
 
