@@ -32,7 +32,7 @@ Work on `main`; commit per milestone with a clear message.
 Decisions already made with the user. Do not revisit without asking:
 
 - **Server host:** Render, **free** plan.
-- **Runtime:** `tsx` in production (no server bundling). Reason: `server/index.ts` imports extensionless paths from `../src/engine`, which native Node ESM rejects; `tsx` handles this with zero build step.
+- **Runtime:** bundled `server/dist/index.js` (esbuild) started with plain `node`; `tsx` is dev-only. `server/index.ts` keeps the test-friendly export (`startServer`), and a thin `server/start.ts` entry is used for production bundling. Chosen because the tsx runtime crashed under Render's free RAM (~512 MB) — see the incident note below.
 - **Rooms:** in-memory only for now; losing rooms on restart/sleep is accepted.
 - **Frontend URL:** keep `https://outwit-one.vercel.app`.
 - **Deploys:** manual via CLIs for now (auto-deploy-on-push is M6, optional).
@@ -54,7 +54,7 @@ Browser ── HTTPS ──▶ Vercel (static Vite build, SPA rewrites)
 
 | Variable | Where | Value | Notes |
 | --- | --- | --- | --- |
-| `VITE_WS_URL` | Vercel, production | `wss://<render-service>.onrender.com` | Baked in at build time; **no** trailing `/ws` (client appends it). Requires redeploy to take effect. |
+| `VITE_WS_URL` | Vercel, production | `wss://outwit-server.onrender.com` | Baked in at build time; **no** trailing `/ws` (client appends it). Requires redeploy to take effect. |
 | `OUTWIT_FORFEIT_SECONDS` | Render | `60` | Disconnect-forfeit grace period. Defaults to 60 if unset. |
 | `OUTWIT_PORT` | local only | e.g. `3001` | Optional local port override. On Render, the server must use the platform-provided `PORT`. |
 
@@ -69,7 +69,7 @@ Evidence gathered before planning; re-verify if stale.
 | Production bundle dials localhost | `grep wss://localhost dist/assets/*.js` matches; `VITE_WS_URL` unset (`npx vercel@latest env ls --project outwit` → none) |
 | Vercel project | name `outwit`, latest prod `https://outwit-one.vercel.app`, Node 24.x, alias `outwit-one.vercel.app` |
 | Deploys are CLI-only | `vercel inspect` has no GitHub commit metadata; no `.vercel/` locally |
-| Server fails in production | `npm run server:ci` (`node server/index.ts`) raises an ESM resolution error on Node 24; `ws` and `tsx` are in `devDependencies` |
+| Server OOM crash loop (fixed 2026-09-14) | Render free tier (~512 MB RAM) running `tsx server/index.ts` OOMs after ~100 s (`FATAL ERROR: Ineffective mark-compacts near heap limit ... JavaScript heap out of memory`); Render restarts every ~1–2 min with no error output. **Fix:** bundle server to `server/dist/index.js` (`esbuild server/start.ts --bundle --packages=external`), run with `node server/dist/index.js`. Build command: `npm ci && npm run build:server`. Logs in Render show start/stop without error — that's the signature. |
 | Server ignores host `PORT` | `server/index.ts:79` reads only `OUTWIT_PORT ?? 3001` |
 | Raw WS server, no HTTP response | `server/index.ts:356` `new WebSocketServer({ port, path: '/ws' })` → PaaS health checks may fail |
 | Local online default likely wrong | `src/services/websocket.ts:11` defaults to TLS `wss://localhost:3001` + `/ws`, while `README.md` documents `ws://localhost:3001/ws` |
@@ -158,7 +158,7 @@ M1 implementation notes: `src/services/websocket.ts` normalizes `VITE_WS_URL` (s
     --runtime node \
     --plan free \
     --region oregon \
-    --build-command "npm ci" \
+    --build-command "npm ci && npm run build:server" \
     --start-command "npm run start:server" \
     --health-check-path / \
     --env-var OUTWIT_FORFEIT_SECONDS=60 \
@@ -241,7 +241,8 @@ Useful commands:
 - **Service worker staleness** after a frontend redeploy: `autoUpdate` is on, but a hard refresh may be needed once.
 - **`vercel env add` needs a redeploy** to affect the bundle (build-time variable).
 - **WSS handshake fails while `curl /` succeeds:** confirm the path is exactly `/ws` on both ends and that `VITE_WS_URL` has no trailing slash/`/ws` duplication. The client normalizes trailing slashes but not a missing `wss://` scheme.
-- **`node server/index.ts` fails with `ERR_MODULE_NOT_FOUND`:** expected on Node 24 due to extensionless engine imports; use `tsx` (`npm run start:server`) or add a bundling step (not chosen).
+- **`server/dist/` is gitignored** and built on Render via `npm run build:server`; the start command is `npm run start:server` (= `node server/dist/index.js`).
+- **`node server/index.ts` fails with `ERR_MODULE_NOT_FOUND`:** expected on Node 24 due to extensionless engine imports; use the bundle (`build:server` + `start:server`). `tsx server/index.ts` still works for local dev.
 - **Render CLI cannot create the service:** create it in the dashboard, then use the CLI for deploys/logs.
 - **CORS:** WebSockets are not subject to browser CORS the same way as fetch; no CORS config is needed for the handshake. Do not add CORS middleware preemptively.
 
