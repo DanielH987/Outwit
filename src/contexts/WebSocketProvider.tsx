@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, type ReactNode } from 'react';
 import { webSocketService } from '@/services/websocket';
 import { useAuthStore, useGameStore } from '@/stores';
 import type { ServerMessage } from '@/types';
@@ -13,10 +13,13 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
   const { updateGameState, addMessage, setActivePlayers, setLastError } = useGameStore();
   const setConnectionId = useAuthStore((s) => s.setConnectionId);
 
-  // `this` is bound so consumers can pass `send` around without the class
-  // instance (it used to be `webSocketService.send`, which crashed with
-  // "Cannot read properties of undefined (reading 'socket')").
-  const send: WebSocketContextValue['send'] = webSocketService.send.bind(webSocketService);
+  // `this` is bound and memoized so consumers can pass `send` around without
+  // re-creating it each render (which would invalidate every useCallback dep
+  // downstream and retrigger effects — see the infinite-join loop).
+  const send: WebSocketContextValue['send'] = useMemo(
+    () => webSocketService.send.bind(webSocketService),
+    []
+  );
 
   useEffect(() => {
     const handler = (message: ServerMessage) => {

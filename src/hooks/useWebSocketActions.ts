@@ -1,42 +1,83 @@
+import { useCallback } from 'react';
 import { useWebSocket } from '@/contexts/WebSocketProvider';
 import { useAuthStore } from '@/stores';
 import type { ClientMessage } from '@/types';
 
+/**
+ * Online-room action helpers.
+ *
+ * IMPORTANT: every returned function is stable (useCallback) because
+ * OnlineGameView passes `joinRoom`/`leaveRoom` into a `useEffect` dependency
+ * array. Unstable references used to trigger an infinite join→broadcast→render
+ * loop that grew server memory to OOM on Render's free tier.
+ */
 export function useWebSocketActions() {
   const { send } = useWebSocket();
-  const { userId, username } = useAuthStore();
 
-  const joinRoom = (roomId: string) => {
-    send({ type: 'join-room', payload: { roomId, userId, username } });
-  };
+  const getAuth = useCallback(() => {
+    const { userId, username } = useAuthStore.getState();
+    return { userId: userId ?? null, username: username ?? null };
+  }, []);
 
-  const leaveRoom = (roomId: string) => {
-    send({ type: 'leave-room', payload: { roomId, userId } });
-  };
+  const joinRoom = useCallback(
+    (roomId: string) => {
+      const { userId, username } = getAuth();
+      send({ type: 'join-room', payload: { roomId, userId, username } });
+    },
+    [send, getAuth]
+  );
 
-  const makeMove = (roomId: string, move: unknown) => {
-    send({ type: 'make-move', payload: { roomId, userId, move } });
-  };
+  const leaveRoom = useCallback(
+    (roomId: string) => {
+      const { userId } = getAuth();
+      send({ type: 'leave-room', payload: { roomId, userId } });
+    },
+    [send, getAuth]
+  );
 
-  const sendChat = (roomId: string, text: string) => {
-    const message: ClientMessage = {
-      type: 'send-chat',
-      payload: { roomId, userId, username, text },
-    };
-    send(message);
-  };
+  const makeMove = useCallback(
+    (roomId: string, move: unknown) => {
+      const { userId } = getAuth();
+      send({ type: 'make-move', payload: { roomId, userId, move } });
+    },
+    [send, getAuth]
+  );
 
-  const resign = (roomId: string) => {
-    send({ type: 'resign', payload: { roomId, userId } });
-  };
+  const sendChat = useCallback(
+    (roomId: string, text: string) => {
+      const { userId, username } = getAuth();
+      const message: ClientMessage = {
+        type: 'send-chat',
+        payload: { roomId, userId, username, text },
+      };
+      send(message);
+    },
+    [send, getAuth]
+  );
 
-  const offerDraw = (roomId: string) => {
-    send({ type: 'offer-draw', payload: { roomId, userId } });
-  };
+  const resign = useCallback(
+    (roomId: string) => {
+      const { userId } = getAuth();
+      send({ type: 'resign', payload: { roomId, userId } });
+    },
+    [send, getAuth]
+  );
 
-  const respondDraw = (roomId: string, accepted: boolean) => {
-    send({ type: 'respond-draw', payload: { roomId, userId, accepted } });
-  };
+  const offerDraw = useCallback(
+    (roomId: string) => {
+      const { userId } = getAuth();
+      send({ type: 'offer-draw', payload: { roomId, userId } });
+    },
+    [send, getAuth]
+  );
+
+  const respondDraw = useCallback(
+    (roomId: string, accepted: boolean) => {
+      const { userId } = getAuth();
+      send({ type: 'respond-draw', payload: { roomId, userId, accepted } });
+    },
+    [send, getAuth]
+  );
 
   return { joinRoom, leaveRoom, makeMove, sendChat, resign, offerDraw, respondDraw };
 }
