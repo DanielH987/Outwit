@@ -2,7 +2,7 @@
 
 This roadmap tracks where Outwit is today and where it is headed. Priorities are ordered to get to a fun, local two-player game first, then expand outward.
 
-## Current Phase: Phase 5 — Multiplayer Backend (In Progress)
+## Current Phase: Complete (local + online playable)
 
 The local pass-and-play game is fully playable at `/game/:gameId`. The multiplayer backend in `server/index.ts` and the client routing for online rooms are complete. The next milestone is hardening the server (disconnection, reconnection, chat, auth) and wiring clock/time-control messages.
 
@@ -47,7 +47,7 @@ Goal: Improve UX and add lightweight persistent stats.
 - [x] Board uses semantic roles (`grid`/`gridcell`) with labeled tiles and live status text; remaining a11y polish (full keyboard nav) is optional.
 - [ ] Responsive/touch follow-ups (e.g. larger hit targets) as needed.
 
-## Phase 5 — Multiplayer Backend (In Progress)
+## Phase 5 — Multiplayer Backend (Done)
 
 Goal: Connect to a real backend and enable online play.
 
@@ -56,8 +56,8 @@ Goal: Connect to a real backend and enable online play.
 - [x] Sync authoritative game state across clients in real time; moves validated by `src/engine/`.
 - [x] Chat per room.
 - [x] Seats persist across disconnect; reconnection with the same `userId` re-binds to the original side.
-- [ ] Graceful disconnection timer (forfeit/claim-win after N seconds, optional flag draw).
-- [ ] Clock/time-control messages once a time-control rule exists.
+- [x] Disconnect-forfeit: after a grace period (default 60 s, tunable via `OUTWIT_FORFEIT_SECONDS`), the still-connected player wins. Reconnecting cancels the timer.
+- [ ] Clock/time-control messages once a time-control rule exists (optional, Phase 6).
 
 ## Open Questions
 

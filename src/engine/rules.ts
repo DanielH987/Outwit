@@ -69,6 +69,11 @@ export function resignationResult(resigner: PlayerId): GameResult {
   return { status: 'finished', winner: opponentOf(resigner), reason: 'resignation' };
 }
 
+/** Result for a disconnection forfeit: the still-connected player wins. */
+export function forfeitResult(forfeiter: PlayerId): GameResult {
+  return { status: 'finished', winner: opponentOf(forfeiter), reason: 'forfeit' };
+}
+
 /** Result for an accepted draw offer. */
 export function drawByAgreementResult(): GameResult {
   return { status: 'finished', winner: null, reason: 'agreement' };

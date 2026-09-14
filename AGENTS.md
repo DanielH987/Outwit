@@ -8,7 +8,7 @@ Build a local-playable prototype of **Outwit**, a custom strategic turn-based bo
 
 ## Current Phase
 
-Pure scaffold / local playable prototype.
+Local + online playable. All roadmap phases through Phase 5 are complete.
 
 - Pages and routing are in place.
 - State management is Zustand.

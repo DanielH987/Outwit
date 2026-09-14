@@ -23,6 +23,8 @@ function resultText(result: GameResult): string | null {
       return `${PLAYER_LABEL[result.winner!]} wins! Base filled.`;
     case 'resignation':
       return `${PLAYER_LABEL[result.winner!]} wins by resignation.`;
+    case 'forfeit':
+      return `${PLAYER_LABEL[result.winner!]} wins — opponent disconnected.`;
     case 'stalemate':
       return 'Draw — stalemate.';
     case 'repetition':

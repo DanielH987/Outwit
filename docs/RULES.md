@@ -135,6 +135,7 @@ The game ends in exactly one of these ways:
 | **Draw**      | Both players agree to a draw via the draw-offer flow.                                          |
 | **Draw**      | Threefold repetition: the same position occurs three times with the same player to move.       |
 | **Resignation** | A player resigns; the opponent wins.                                                         |
+| **Forfeit (online)** | A player disconnects and fails to reconnect within a grace period (~60 s by default). The still-connected player wins. Reconnecting inside the grace period cancels the forfeit. Local pass-and-play has no forfeit. |
 
 Notes:
 
@@ -144,7 +145,7 @@ Notes:
 
 ## 10. Open Questions
 
-None. The rules are fully specified as of v0.6. Add questions here if new edge cases surface during implementation.
+None. The core rules are fully specified as of v0.6; online-specific additions (disconnect-forfeit grace period) are in §9 and are implementation-level, not board rules. Add questions here if new edge cases surface.
 
 ## 11. Implementation Notes
 

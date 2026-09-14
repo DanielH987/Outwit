@@ -69,12 +69,13 @@ server/           # WebSocket multiplayer server (tsx), driven by src/engine/
 
 ## Current State
 
-This is a **pure scaffold / local playable prototype**.
+The local pass-and-play prototype is **complete** — the game is fully playable in a browser, and online multiplayer works end-to-end.
 
 - Game rules are fully specified in [`docs/RULES.md`](docs/RULES.md) and implemented as a pure, tested engine in `src/engine/`.
-- A playable local pass-and-play game exists at `/game/:gameId` (board UI, legal-move highlighting, turn taking, move history, elapsed-time clocks, win/stalemate/repetition, resign & draw offer).
-- Lobby offers "Play now" for local games and "Join online room" for multiplayer; profile page shows local stats and match history.
-- Online rooms work via the WebSocket server in `server/` (`npm run server`); client joins `/game/<roomId>` (anything but `local`). Reconnecting keeps your seat.
+- Play locally at `/game/local`, or online at `/game/<room>` (requires `npm run server`).
+- Board UI has legal-move highlighting, move history, elapsed-time clocks, win/stalemate/repetition detection, and resign/draw offer.
+- Online rooms support chat, reconnecting back to your seat, and disconnect-forfeit (still-connected player wins after a grace period).
+- Profile page shows local pass-and-play stats and match history.
 - The WebSocket client connects but expects a backend matching the message types in `src/types/index.ts`.
 - Authentication is client-side only (Zustand persist to `localStorage`).
 

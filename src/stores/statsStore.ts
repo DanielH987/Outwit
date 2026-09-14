@@ -15,6 +15,15 @@ export interface LocalMatchRecord {
   blackSeconds: number;
 }
 
+export const REASON_LABELS: Record<NonNullable<GameResult['reason']>, string> = {
+  'base-filled': 'base filled',
+  stalemate: 'stalemate',
+  agreement: 'draw by agreement',
+  repetition: 'threefold repetition',
+  resignation: 'resignation',
+  forfeit: 'opponent disconnected',
+} as const;
+
 interface StatsState {
   matches: LocalMatchRecord[];
   addMatch: (record: LocalMatchRecord) => void;

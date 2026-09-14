@@ -31,7 +31,8 @@ export type GameEndReason =
   | 'stalemate'
   | 'agreement'
   | 'repetition'
-  | 'resignation';
+  | 'resignation'
+  | 'forfeit';
 
 export interface GameResult {
   status: 'in-progress' | 'finished';

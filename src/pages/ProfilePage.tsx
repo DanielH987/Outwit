@@ -1,5 +1,6 @@
 import { useParams } from 'react-router-dom';
 import { useStatsStore } from '@/stores';
+import { REASON_LABELS } from '@/stores/statsStore';
 import type { LocalMatchRecord } from '@/stores/statsStore';
 
 function resultLabel(record: LocalMatchRecord): string {
@@ -7,14 +8,6 @@ function resultLabel(record: LocalMatchRecord): string {
   if (record.winner === 'black') return 'Black won';
   return 'Draw';
 }
-
-const REASON_LABEL: Record<LocalMatchRecord['reason'], string> = {
-  'base-filled': 'base filled',
-  stalemate: 'stalemate',
-  agreement: 'draw by agreement',
-  repetition: 'threefold repetition',
-  resignation: 'resignation',
-};
 
 function formatDuration(totalSeconds: number): string {
   const minutes = Math.floor(totalSeconds / 60);
@@ -54,7 +47,7 @@ export function ProfilePage() {
             {[...matches].reverse().map((match, i) => (
               <li key={`${match.finishedAt}-${i}`} className="flex items-center justify-between rounded-lg bg-surface px-4 py-3 text-sm">
                 <span className="font-semibold">{resultLabel(match)}</span>
-                <span className="text-slate-400">{REASON_LABEL[match.reason]}</span>
+                <span className="text-slate-400">{REASON_LABELS[match.reason]}</span>
                 <span className="font-mono text-xs text-slate-500">
                   {new Date(match.finishedAt).toLocaleString()} · {match.moveCount} moves · W {formatDuration(match.whiteSeconds)} / B {formatDuration(match.blackSeconds)}
                 </span>

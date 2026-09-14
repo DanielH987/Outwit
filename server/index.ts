@@ -17,6 +17,7 @@ import {
   createInitialState,
   drawByAgreementResult,
   evaluateGameEnd,
+  forfeitResult,
   formatMove,
   opponentOf,
   positionKey,
@@ -69,12 +70,19 @@ interface Room {
   state: RoomState;
   players: Map<string, ClientInfo>;
   spectators: Map<string, ClientInfo>;
+  forfeitTimer: NodeJS.Timeout | null;
 }
 
 const rooms = new Map<string, Room>();
 let nextUserSuffix = 1;
 
 const PORT = Number(process.env.OUTWIT_PORT ?? 3001);
+
+/** Seconds after which a disconnected seat forfeits. Configurable via env. */
+function forfeitSeconds(): number {
+  const parsed = Number.parseInt(process.env.OUTWIT_FORFEIT_SECONDS ?? '', 10);
+  return Number.isFinite(parsed) ? parsed : 60;
+}
 
 function open(ws: WebSocket) {
   return ws.readyState === WebSocket.OPEN;
@@ -112,6 +120,31 @@ function roomStatePayload(room: Room): GameStatePayload {
   };
 }
 
+function clearForfeitTimer(room: Room) {
+  if (room.forfeitTimer) {
+    clearTimeout(room.forfeitTimer);
+    room.forfeitTimer = null;
+  }
+}
+
+/** If someone is disconnected mid-game, the connected player wins after the grace period. */
+function maybeStartForfeitTimer(room: Room) {
+  const s = room.state;
+  clearForfeitTimer(room);
+  if (s.result.status !== 'in-progress') return;
+  if (s.players.length < 2) return;
+  const disconnected = s.players.find((p) => !p.connected);
+  const connectedPlayer = s.players.find((p) => p.connected);
+  if (!disconnected || !connectedPlayer) return;
+
+  room.forfeitTimer = setTimeout(() => {
+    if (s.result.status === 'in-progress' && !disconnected.connected) {
+      s.result = forfeitResult(disconnected.side as PlayerId);
+      broadcastState(room);
+    }
+  }, forfeitSeconds() * 1000);
+}
+
 function roomUpdatePayload(room: Room): RoomUpdatePayload {
   return {
     roomId: room.id,
@@ -121,7 +154,9 @@ function roomUpdatePayload(room: Room): RoomUpdatePayload {
 }
 
 function broadcastState(room: Room) {
+  clearForfeitTimer(room);
   broadcastRoom(room, { type: 'game-state', payload: roomStatePayload(room) });
+  maybeStartForfeitTimer(room);
 }
 
 function broadcastRoomUpdate(room: Room) {
@@ -148,6 +183,7 @@ function createRoom(roomId: string): Room {
     },
     players: new Map(),
     spectators: new Map(),
+    forfeitTimer: null,
   };
 }
 
@@ -173,7 +209,7 @@ function joinRoom(client: ClientInfo, payload: JoinRoomPayload) {
     existing.username = client.username ?? existing.username;
     client.userId = seatId;
     broadcastRoomUpdate(room);
-    send(client.ws, { type: 'game-state', payload: roomStatePayload(room) });
+    broadcastState(room);
     return;
   }
 
@@ -200,9 +236,12 @@ function removeClientFromRoom(room: Room, client: ClientInfo) {
   room.spectators.delete(client.userId);
 
   broadcastRoomUpdate(room);
+  // Also broadcast game-state so clients see the connection-status change.
+  broadcastState(room);
   // Rooms persist while anyone holds a seat (even if disconnected), so a
   // reconnect can re-bind. Rooms are only dropped when nobody ever joined.
   if (room.state.players.length === 0 && room.state.spectators.length === 0) {
+    clearForfeitTimer(room);
     rooms.delete(room.id);
   }
 }
