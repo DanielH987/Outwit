@@ -4,7 +4,9 @@ This roadmap tracks where Outwit is today and where it is headed. Priorities are
 
 ## Current Phase: Complete (local + online playable)
 
-The local pass-and-play game is fully playable at `/game/:gameId`. The multiplayer backend in `server/index.ts` and the client routing for online rooms are complete. The next milestone is hardening the server (disconnection, reconnection, chat, auth) and wiring clock/time-control messages.
+The local pass-and-play game is fully playable at `/game/:gameId`. The multiplayer backend in `server/index.ts` and the client routing for online rooms are complete. All roadmap phases through Phase 5 are done; the next active effort is **deployment** (client on Vercel, WebSocket server on Render).
+
+→ Deployment plan and milestone checklist: [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md). Resume from the first unchecked milestone there.
 
 ## Phase 1 — Define the Game (In Progress)
 

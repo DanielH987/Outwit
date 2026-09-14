@@ -10,6 +10,8 @@ Build a local-playable prototype of **Outwit**, a custom strategic turn-based bo
 
 Local + online playable. All roadmap phases through Phase 5 are complete.
 
+**Active effort: deployment.** The milestone-based plan (M1–M6), locked decisions, env vars, and verification steps live in `docs/DEPLOYMENT.md`. Resume from the first unchecked milestone there; mark it `[x]` and commit per milestone.
+
 - Pages and routing are in place.
 - State management is Zustand.
 - The rules are fully specified in `docs/RULES.md` and encoded as a pure engine in `src/engine/`.

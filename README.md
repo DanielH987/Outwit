@@ -82,6 +82,7 @@ The local pass-and-play prototype is **complete** — the game is fully playable
 ## Documentation
 
 - [`docs/RULES.md`](docs/RULES.md) — full game rules (source of truth).
+- [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) — deployment plan, milestones, and runbook (Vercel + Render).
 - [`ROADMAP.md`](ROADMAP.md) — development phases and current priorities.
 - [`AGENTS.md`](AGENTS.md) — context and conventions for AI agents.
 
