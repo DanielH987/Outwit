@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import { useWebSocket } from '@/contexts/WebSocketProvider';
+import { webSocketService } from '@/services/websocket';
 import { useAuthStore } from '@/stores';
 import type { ClientMessage } from '@/types';
 
@@ -22,6 +23,8 @@ export function useWebSocketActions() {
   const joinRoom = useCallback(
     (roomId: string) => {
       const { userId, username } = getAuth();
+      // Remember for auto-rejoin after a reconnect (seat re-bind).
+      webSocketService.setActiveRoom({ roomId, userId, username });
       send({ type: 'join-room', payload: { roomId, userId, username } });
     },
     [send, getAuth]
@@ -30,6 +33,7 @@ export function useWebSocketActions() {
   const leaveRoom = useCallback(
     (roomId: string) => {
       const { userId } = getAuth();
+      webSocketService.setActiveRoom(null);
       send({ type: 'leave-room', payload: { roomId, userId } });
     },
     [send, getAuth]

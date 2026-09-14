@@ -1,4 +1,4 @@
-import type { ClientMessage, ServerMessage } from '@/types';
+import type { ClientMessage, JoinRoomPayload, ServerMessage } from '@/types';
 
 const raw: string | undefined = import.meta.env?.VITE_WS_URL as string | undefined;
 // Default for local dev; production sets VITE_WS_URL (build-time).
@@ -8,45 +8,92 @@ const WS_URL = base.endsWith('/ws') ? base : `${base}/ws`;
 
 type MessageHandler = (message: ServerMessage) => void;
 
+const MAX_QUEUED = 50;
+
 class WebSocketService {
   private socket: WebSocket | null = null;
   private handlers: MessageHandler[] = [];
   private reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
+  /** Messages sent before the socket opens; flushed on open. */
+  private queue: ClientMessage[] = [];
+  /** Last joined room; re-sent on reconnect so the server re-binds our seat. */
+  private activeRoom: JoinRoomPayload | null = null;
+  private manuallyClosed = false;
 
   connect() {
-    if (this.socket?.readyState === WebSocket.OPEN) return;
+    this.manuallyClosed = false;
+    if (this.socket && (this.socket.readyState === WebSocket.OPEN || this.socket.readyState === WebSocket.CONNECTING)) {
+      return;
+    }
 
     try {
       this.socket = new WebSocket(WS_URL);
     } catch {
-      this.reconnectTimeout = setTimeout(() => this.connect(), 3000);
+      this.scheduleReconnect();
       return;
     }
 
+    this.socket.onopen = () => {
+      const pending = this.queue;
+      this.queue = [];
+      for (const message of pending) {
+        this.rawSend(message);
+      }
+      if (this.activeRoom) {
+        this.rawSend({ type: 'join-room', payload: this.activeRoom });
+      }
+    };
+
     this.socket.onmessage = (event) => {
-      const message = JSON.parse(event.data) as ServerMessage;
+      let message: ServerMessage;
+      try {
+        message = JSON.parse(event.data) as ServerMessage;
+      } catch {
+        return;
+      }
       this.handlers.forEach((handler) => handler(message));
     };
 
     this.socket.onclose = () => {
-      this.reconnectTimeout = setTimeout(() => this.connect(), 3000);
+      if (!this.manuallyClosed) this.scheduleReconnect();
     };
   }
 
+  private scheduleReconnect() {
+    if (this.reconnectTimeout) clearTimeout(this.reconnectTimeout);
+    this.reconnectTimeout = setTimeout(() => this.connect(), 3000);
+  }
+
   disconnect() {
+    this.manuallyClosed = true;
     if (this.reconnectTimeout) {
       clearTimeout(this.reconnectTimeout);
       this.reconnectTimeout = null;
     }
     this.socket?.close();
     this.socket = null;
+    this.queue = [];
+    this.activeRoom = null;
+  }
+
+  /** Remember the active room so a reconnect re-binds the same seat. */
+  setActiveRoom(payload: JoinRoomPayload | null) {
+    this.activeRoom = payload;
   }
 
   send(message: ClientMessage) {
+    if (this.socket?.readyState === WebSocket.OPEN) {
+      this.rawSend(message);
+      return;
+    }
+    // Socket not open yet (first load or mid-reconnect): queue it.
+    if (this.queue.length < MAX_QUEUED) this.queue.push(message);
+    this.connect();
+  }
+
+  private rawSend(message: ClientMessage) {
     try {
-      if (this.socket?.readyState === WebSocket.OPEN) {
-        this.socket.send(JSON.stringify(message));
-      }
+      this.socket?.send(JSON.stringify(message));
     } catch {
       // Drop the message rather than crash if the socket is mid-teardown.
     }

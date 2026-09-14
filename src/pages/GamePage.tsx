@@ -95,8 +95,7 @@ function LocalGameView() {
 function OnlineGameView({ roomId }: { roomId: string }) {
   const { gameState, selectedChipId, lastError } = useGameStore();
   const { joinRoom, leaveRoom, makeMove, sendChat, resign: sendResign, offerDraw: sendOfferDraw, respondDraw } = useWebSocketActions();
-  const { username } = useAuthStore();
-  const connectionId = useAuthStore((s) => s.connectionId);
+  const { username, userId } = useAuthStore();
 
   useEffect(() => {
     joinRoom(roomId);
@@ -107,7 +106,10 @@ function OnlineGameView({ roomId }: { roomId: string }) {
     if (!gameState) useGameStore.setState({ selectedChipId: null, lastError: null });
   }, [gameState]);
 
-  const me = gameState?.players.find((p) => p.userId === connectionId) ?? null;
+  // "Me" is the seat whose userId matches our stable client identity. The
+  // server-assigned connectionId changes on every reconnect and must not be
+  // used for seat matching.
+  const me = gameState?.players.find((p) => p.userId === userId) ?? null;
   const mySide = me?.side ?? null;
   const pendingDrawFrom = gameState?.pendingDrawFrom ?? null;
   const pendingFromMe = pendingDrawFrom !== null && pendingDrawFrom === mySide;
@@ -182,7 +184,7 @@ function OnlineGameView({ roomId }: { roomId: string }) {
                     aria-label={p.connected ? 'connected' : 'disconnected'}
                   />
                   {p.username ?? p.userId} — <span className="text-slate-500">{p.side}</span>
-                  {p.userId === connectionId && <span className="text-accent">(you)</span>}
+                  {p.userId === userId && <span className="text-accent">(you)</span>}
                 </li>
               ))}
             </ul>

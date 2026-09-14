@@ -1,11 +1,14 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { generateId } from '@/utils/id';
 
 interface AuthState {
-  userId: string | null;
+  /** Stable client-generated identity; used as the server seat id so a
+   *  reconnect re-binds to the same side. Persisted in localStorage. */
+  userId: string;
   username: string | null;
   isAuthenticated: boolean;
-  /** Server-assigned id from the current connection; used to find your side. */
+  /** Server-assigned id from the current connection (reassigned each reconnect). */
   connectionId: string | null;
   setUser: (userId: string, username: string) => void;
   setConnectionId: (id: string) => void;
@@ -15,7 +18,8 @@ interface AuthState {
 export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
-      userId: null,
+      // Guests get a generated identity immediately; `setUser` upgrades it.
+      userId: generateId('user'),
       username: null,
       isAuthenticated: false,
       connectionId: null,
@@ -23,8 +27,22 @@ export const useAuthStore = create<AuthState>()(
         set({ userId, username, isAuthenticated: true }),
       setConnectionId: (id) => set({ connectionId: id }),
       logout: () =>
-        set({ userId: null, username: null, connectionId: null, isAuthenticated: false }),
+        set({
+          userId: generateId('user'),
+          username: null,
+          connectionId: null,
+          isAuthenticated: false,
+        }),
     }),
-    { name: 'outwit-auth' }
+    { name: 'outwit-auth', version: 1,
+      migrate: (persisted) => {
+        const state = (persisted ?? {}) as Partial<AuthState>;
+        return {
+          ...state,
+          userId: state.userId ?? generateId('user'),
+          connectionId: null,
+        } as AuthState;
+      },
+    }
   )
 );
