@@ -10,7 +10,7 @@ type MessageHandler = (message: ServerMessage) => void;
 
 const MAX_QUEUED = 50;
 
-class WebSocketService {
+export class WebSocketService {
   private socket: WebSocket | null = null;
   private handlers: MessageHandler[] = [];
   private reconnectTimeout: ReturnType<typeof setTimeout> | null = null;

@@ -72,6 +72,7 @@ interface Room {
   players: Map<string, ClientInfo>;
   spectators: Map<string, ClientInfo>;
   forfeitTimer: NodeJS.Timeout | null;
+  lastActivityAt: number;
 }
 
 const rooms = new Map<string, Room>();
@@ -155,13 +156,32 @@ function roomUpdatePayload(room: Room): RoomUpdatePayload {
 }
 
 function broadcastState(room: Room) {
+  room.lastActivityAt = Date.now();
   clearForfeitTimer(room);
   broadcastRoom(room, { type: 'game-state', payload: roomStatePayload(room) });
   maybeStartForfeitTimer(room);
 }
 
 function broadcastRoomUpdate(room: Room) {
+  room.lastActivityAt = Date.now();
   broadcastRoom(room, { type: 'room-update', payload: roomUpdatePayload(room) });
+}
+
+/** Minutes an abandoned room (no connected clients) is kept for reconnects. */
+function roomTtlSeconds(): number {
+  const parsed = Number.parseInt(process.env.OUTWIT_ROOM_TTL_SECONDS ?? '', 10);
+  return Number.isFinite(parsed) ? parsed : 1800;
+}
+
+/** Drop rooms nobody is connected to after the TTL; prevents unbounded growth. */
+function sweepAbandonedRooms() {
+  const cutoff = Date.now() - roomTtlSeconds() * 1000;
+  for (const [id, room] of rooms) {
+    if (room.players.size > 0 || room.spectators.size > 0) continue;
+    if (room.lastActivityAt > cutoff) continue;
+    clearForfeitTimer(room);
+    rooms.delete(id);
+  }
 }
 
 function error(target: ClientInfo | WebSocket, message: string) {
@@ -185,6 +205,7 @@ function createRoom(roomId: string): Room {
     players: new Map(),
     spectators: new Map(),
     forfeitTimer: null,
+    lastActivityAt: Date.now(),
   };
 }
 
@@ -202,7 +223,7 @@ function joinRoom(client: ClientInfo, payload: JoinRoomPayload) {
   // Seats are keyed by the client-supplied userId from the join payload (and
   // every message includes the same userId). A reconnecting client that
   // keeps its userId re-binds to its seat.
-  const seatId = payload.userId!;
+  const seatId = payload.userId ?? `anon-${nextUserSuffix++}`;
   const existing = room.state.players.find((p) => p.userId === seatId);
   if (existing) {
     room.players.set(seatId, client);
@@ -414,10 +435,14 @@ export function startServer(port = PORT): RunningServer {
 
   httpServer.listen(port, '0.0.0.0');
 
+  const sweep = setInterval(sweepAbandonedRooms, 60_000);
+  sweep.unref?.();
+
   return {
     wss,
     httpServer,
     close() {
+      clearInterval(sweep);
       wss.close();
       httpServer.close();
     },

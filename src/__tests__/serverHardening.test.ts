@@ -129,4 +129,20 @@ describe('multiplayer hardening', () => {
     a2.closeNow();
     b2.closeNow();
   });
+
+  it('join-room with a null userId gets a distinct seat instead of colliding', async () => {
+    const roomId = 'anon-seats';
+    const a = await connect();
+    a.send('join-room', { roomId, userId: null, username: 'AnonA' });
+    const b = await connect();
+    b.send('join-room', { roomId, userId: null, username: 'AnonB' });
+
+    const update = await b.nextBy('room-update', (p) => p.players.length === 2);
+    const players = (update.payload as any).players;
+    expect(players).toHaveLength(2);
+    expect(new Set(players.map((p: any) => p.userId)).size).toBe(2);
+    expect(players.map((p: any) => p.side).sort()).toEqual(['black', 'white']);
+    a.closeNow();
+    b.closeNow();
+  });
 });
