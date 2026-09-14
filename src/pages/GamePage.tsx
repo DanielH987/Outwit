@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { Board } from '@/components/Board';
 import { ChatPanel } from '@/components/ChatPanel';
 import { GameClocks } from '@/components/GameClocks';
@@ -68,8 +68,14 @@ function LocalGameView() {
   const { highlight: lastMove, onHighlight } = useBoardHighlight(moveHistory);
 
   return (
-    <main className="flex min-h-screen flex-col items-center gap-4 px-4 py-8">
-      <h2 className="text-2xl font-bold">Local game</h2>
+    <main className="flex flex-1 flex-col items-center gap-4 px-4 py-8">
+      <div className="flex w-full max-w-4xl items-center justify-between gap-3">
+        <Link to="/lobby" className="text-sm font-semibold text-taupe transition hover:text-accent">
+          ← Lobby
+        </Link>
+        <h2 className="text-2xl font-bold">Local game</h2>
+        <span className="w-14" aria-hidden />
+      </div>
       <p className="max-w-md text-center text-sm text-taupe">
         Pass-and-play. White (Player 1) moves first. Standard chips must slide as far as possible; the
         power chip (★) may stop anywhere along its line.
@@ -169,15 +175,21 @@ function OnlineGameView({ roomId }: { roomId: string }) {
 
   if (!gameState) {
     return (
-      <main className="flex min-h-screen items-center justify-center text-taupe">
+      <main className="flex flex-1 items-center justify-center text-taupe">
         <p>Connecting to server...</p>
       </main>
     );
   }
 
   return (
-    <main className="flex min-h-screen flex-col items-center gap-4 px-4 py-8">
-      <h2 className="text-2xl font-bold">Room {roomId}</h2>
+    <main className="flex flex-1 flex-col items-center gap-4 px-4 py-8">
+      <div className="flex w-full max-w-4xl items-center justify-between gap-3">
+        <Link to="/lobby" className="text-sm font-semibold text-taupe transition hover:text-accent">
+          ← Lobby
+        </Link>
+        <h2 className="truncate text-center text-2xl font-bold">Room {roomId}</h2>
+        <span className="w-14" aria-hidden />
+      </div>
       <p className="text-sm text-taupe">
         {mySide ? `You are ${mySide}. ` : ''}
         {username ? `Logged in as ${username}. ` : ''}
