@@ -113,17 +113,22 @@ function OnlineGameView({ roomId }: { roomId: string }) {
   const pendingFromMe = pendingDrawFrom !== null && pendingDrawFrom === mySide;
   const pendingFromOpponent = pendingDrawFrom !== null && !pendingFromMe;
 
+  const boardState = useMemo(
+    () => (gameState ? { chips: gameState.board.chips, sideToMove: gameState.board.sideToMove } satisfies import('@/engine').BoardState : null),
+    [gameState]
+  );
+
   const selected = useMemo(() => {
-    if (!gameState || !selectedChipId) return null;
-    const chip = gameState.board.chips.find((c) => c.id === selectedChipId) ?? null;
-    return chip ? { chip, legal: getLegalMoves(gameState.board as any, chip.id) } : null;
-  }, [gameState, selectedChipId]);
+    if (!boardState || !selectedChipId) return null;
+    const chip = boardState.chips.find((c) => c.id === selectedChipId) ?? null;
+    return chip ? { chip, legal: getLegalMoves(boardState, chip.id) } : null;
+  }, [boardState, selectedChipId]);
 
   const handleTileClick = useCallback(
     (pos: Position) => {
       if (!gameState || gameState.result.status !== 'in-progress') return;
       if (!mySide || mySide !== gameState.board.sideToMove) return;
-      const chip = chipAt(gameState.board as any, pos);
+      const chip = chipAt(boardState!, pos);
       if (selected && selected.legal.some((m: Position) => samePosition(m, pos))) {
         makeMove(roomId, { chipId: selected.chip.id, to: pos });
         useGameStore.getState().setSelectedChip(null);
@@ -136,7 +141,7 @@ function OnlineGameView({ roomId }: { roomId: string }) {
       }
       useGameStore.getState().setSelectedChip(null);
     },
-    [gameState, mySide, selected, makeMove, roomId]
+    [boardState, gameState, mySide, selected, makeMove, roomId]
   );
 
   if (!gameState) {
@@ -164,7 +169,7 @@ function OnlineGameView({ roomId }: { roomId: string }) {
       )}
       <div className="grid w-full max-w-4xl gap-4 lg:grid-cols-[2fr_1fr]">
         <div className="mx-auto w-full max-w-lg lg:max-w-none">
-          <Board state={gameState.board as any} selectedChipId={selectedChipId} legalMoves={selected?.legal ?? []} onTileClick={handleTileClick} />
+          <Board state={boardState!} selectedChipId={selectedChipId} legalMoves={selected?.legal ?? []} onTileClick={handleTileClick} />
         </div>
         <div className="flex flex-col gap-4">
           <div className="rounded-xl bg-surface p-4 text-sm text-slate-200 shadow-lg">

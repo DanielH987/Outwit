@@ -296,7 +296,7 @@ function resign(room: Room, client: ClientInfo) {
 }
 
 function handleMessage(client: ClientInfo, message: ClientMessage) {
-  let room = client.roomId ? rooms.get(client.roomId) : undefined;
+  const room = client.roomId ? rooms.get(client.roomId) : undefined;
 
   switch (message.type) {
     case 'join-room':
