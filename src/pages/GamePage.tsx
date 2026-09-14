@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Board } from '@/components/Board';
 import { ChatPanel } from '@/components/ChatPanel';
@@ -7,11 +7,22 @@ import { GameControls } from '@/components/GameControls';
 import { MoveHistoryPanel } from '@/components/MoveHistoryPanel';
 import { chipAt, getLegalMoves, samePosition } from '@/engine';
 import { useGameStore, useLocalGameStore } from '@/stores';
+import type { MoveRecord } from '@/stores/localGameStore';
 import { useWebSocketActions } from '@/hooks/useWebSocketActions';
 import { useAuthStore } from '@/stores';
 import type { Position } from '@/engine';
 
 const LOCAL_ID = 'local';
+
+/**
+ * Latest-move highlight shown on the board: defaults to the most recent move,
+ * while hovering history entries temporarily previews their squares.
+ */
+function useBoardHighlight(moveHistory: MoveRecord[]) {
+  const [hovered, setHovered] = useState<MoveRecord | null>(null);
+  const latest = moveHistory.length > 0 ? moveHistory[moveHistory.length - 1] : null;
+  return { highlight: hovered ?? latest, onHighlight: setHovered };
+}
 
 /**
  * Local pass-and-play game screen, driven by the pure engine + localGameStore.
@@ -54,6 +65,8 @@ function LocalGameView() {
     [result, state, selectedChipId, legalMoves, selectChip, moveSelected, deselect]
   );
 
+  const { highlight: lastMove, onHighlight } = useBoardHighlight(moveHistory);
+
   return (
     <main className="flex min-h-screen flex-col items-center gap-4 px-4 py-8">
       <h2 className="text-2xl font-bold">Local game</h2>
@@ -64,7 +77,13 @@ function LocalGameView() {
       <GameClocks />
       <div className="grid w-full max-w-4xl gap-4 lg:grid-cols-[2fr_1fr]">
         <div className="mx-auto w-full max-w-lg lg:max-w-none">
-          <Board state={state} selectedChipId={selectedChipId} legalMoves={legalMoves} onTileClick={handleTileClick} />
+          <Board
+            state={state}
+            selectedChipId={selectedChipId}
+            legalMoves={legalMoves}
+            onTileClick={handleTileClick}
+            lastMove={lastMove}
+          />
         </div>
         <div className="flex flex-col gap-4">
           <GameControls
@@ -78,7 +97,7 @@ function LocalGameView() {
             onReset={reset}
           />
           <div className="lg:flex-1">
-            <MoveHistoryPanel history={moveHistory} />
+            <MoveHistoryPanel history={moveHistory} onHighlight={onHighlight} highlightedMove={lastMove} />
           </div>
         </div>
       </div>
@@ -146,6 +165,8 @@ function OnlineGameView({ roomId }: { roomId: string }) {
     [boardState, gameState, mySide, selected, makeMove, roomId]
   );
 
+  const { highlight: lastMove, onHighlight } = useBoardHighlight(gameState?.moveHistory ?? []);
+
   if (!gameState) {
     return (
       <main className="flex min-h-screen items-center justify-center text-slate-400">
@@ -171,7 +192,13 @@ function OnlineGameView({ roomId }: { roomId: string }) {
       )}
       <div className="grid w-full max-w-4xl gap-4 lg:grid-cols-[2fr_1fr]">
         <div className="mx-auto w-full max-w-lg lg:max-w-none">
-          <Board state={boardState!} selectedChipId={selectedChipId} legalMoves={selected?.legal ?? []} onTileClick={handleTileClick} />
+          <Board
+            state={boardState!}
+            selectedChipId={selectedChipId}
+            legalMoves={selected?.legal ?? []}
+            onTileClick={handleTileClick}
+            lastMove={lastMove}
+          />
         </div>
         <div className="flex flex-col gap-4">
           <div className="rounded-xl bg-surface p-4 text-sm text-slate-200 shadow-lg">
@@ -225,7 +252,7 @@ function OnlineGameView({ roomId }: { roomId: string }) {
               )}
             </div>
           </div>
-          <MoveHistoryPanel history={gameState.moveHistory} />
+          <MoveHistoryPanel history={gameState.moveHistory} onHighlight={onHighlight} highlightedMove={lastMove} />
           <ChatPanel roomId={roomId} sendChat={sendChat} mySide={mySide} />
         </div>
       </div>

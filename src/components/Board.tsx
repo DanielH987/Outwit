@@ -14,9 +14,11 @@ interface BoardProps {
   selectedChipId: string | null;
   legalMoves: Position[];
   onTileClick: (pos: Position) => void;
+  /** Squares of the most recent move, highlighted like chess.com. */
+  lastMove?: { from: Position; to: Position } | null;
 }
 
-export function Board({ state, selectedChipId, legalMoves, onTileClick }: BoardProps) {
+export function Board({ state, selectedChipId, legalMoves, onTileClick, lastMove = null }: BoardProps) {
   const rows = Array.from({ length: 10 }, (_, y) => y);
   const cols = Array.from({ length: 9 }, (_, x) => x);
 
@@ -25,6 +27,10 @@ export function Board({ state, selectedChipId, legalMoves, onTileClick }: BoardP
     : null;
 
   const isTarget = (pos: Position) => legalMoves.some((m) => m.x === pos.x && m.y === pos.y);
+  const isLastMoveSquare = (pos: Position) =>
+    lastMove !== null &&
+    ((pos.x === lastMove.from.x && pos.y === lastMove.from.y) ||
+      (pos.x === lastMove.to.x && pos.y === lastMove.to.y));
 
   return (
     <div
@@ -41,6 +47,7 @@ export function Board({ state, selectedChipId, legalMoves, onTileClick }: BoardP
           const isSelected = chip && chip.id === selectedChipId;
           const isLegalTarget = !chip && isTarget(pos);
           const light = (x + y) % 2 === 0;
+          const lastMoveSquare = isLastMoveSquare(pos);
 
           return (
             <button
@@ -57,6 +64,13 @@ export function Board({ state, selectedChipId, legalMoves, onTileClick }: BoardP
                 isLegalTarget ? 'cursor-pointer' : '',
               ].join(' ')}
             >
+              {lastMoveSquare && (
+                <span
+                  className="pointer-events-none absolute inset-0 bg-amber-300/25"
+                  data-testid={`last-move-${x},${y}`}
+                  aria-hidden
+                />
+              )}
               {isLegalTarget && (
                 <span className="absolute h-3 w-3 rounded-full bg-accent/90 ring-2 ring-accent/60" aria-hidden />
               )}
@@ -65,15 +79,19 @@ export function Board({ state, selectedChipId, legalMoves, onTileClick }: BoardP
                   data-testid={`chip-${chip.id}`}
                   aria-label={`${chip.player} chip ${chip.id}`}
                   className={[
-                    'pointer-events-none flex h-4/5 w-4/5 items-center justify-center rounded-full border-2 text-[0.55rem] font-bold sm:text-xs',
+                    'pointer-events-none relative flex h-4/5 w-4/5 items-center justify-center rounded-full border-2',
                     chip.player === 'white'
                       ? 'border-slate-100 bg-slate-100 text-slate-900'
                       : 'border-slate-900 bg-slate-950 text-slate-100',
                     isSelected ? 'ring-4 ring-accent shadow-lg shadow-accent/50' : '',
-                    chip.isPower ? 'ring-2 ring-amber-400' : '',
+                    chip.isPower ? 'border-amber-400 border-dashed' : '',
                   ].join(' ')}
                 >
-                  {chip.isPower ? '★' : chip.id.split('-')[1]}
+                  {chip.isPower && (
+                    <span className="text-[0.6rem] leading-none sm:text-sm" aria-hidden>
+                      ★
+                    </span>
+                  )}
                 </span>
               )}
               {isSelected && (
