@@ -37,6 +37,8 @@ class WebSocketService {
       const pending = this.queue;
       this.queue = [];
       for (const message of pending) {
+        // Skip queued joins; the activeRoom rejoin below supersedes them.
+        if (this.activeRoom && message.type === 'join-room') continue;
         this.rawSend(message);
       }
       if (this.activeRoom) {
