@@ -9,7 +9,7 @@ import { GameOverDialog } from '@/components/GameOverDialog';
 import { MoveHistoryPanel } from '@/components/MoveHistoryPanel';
 import { WaitingForOpponent } from '@/components/WaitingForOpponent';
 import { chipAt, getLegalMoves, samePosition } from '@/engine';
-import { useGameStore, useLocalGameStore, useProfileStore } from '@/stores';
+import { useGameStore, useLocalGameStore } from '@/stores';
 import type { MoveRecord } from '@/stores/localGameStore';
 import { useWebSocketActions } from '@/hooks/useWebSocketActions';
 import { useAuthStore } from '@/stores';
@@ -143,14 +143,8 @@ function OnlineGameView({ roomId }: { roomId: string }) {
   const { gameState, selectedChipId, lastError } = useGameStore();
   const { joinRoom, leaveRoom, makeMove, sendChat, resign: sendResign, offerDraw: sendOfferDraw, respondDraw } = useWebSocketActions();
   const { userId } = useAuthStore();
-  const displayName = useProfileStore((s) => s.displayName);
-  const guestName = useProfileStore((s) => s.guestName);
-  const ensureGuestName = useProfileStore((s) => s.ensureGuestName);
   const [dismissedResultKey, setDismissedResultKey] = useState<string | null>(null);
   const navigate = useNavigate();
-
-  // Name we're playing under (matches what `useWebSocketActions` sends).
-  const playingAs = displayName ?? guestName ?? ensureGuestName();
 
   useEffect(() => {
     joinRoom(roomId);
@@ -256,14 +250,6 @@ function OnlineGameView({ roomId }: { roomId: string }) {
           {gameState.result.status === 'in-progress'
             ? `${gameState.board.sideToMove === 'white' ? 'White' : 'Black'} to move.`
             : 'Game over.'}
-        </p>
-
-        {/* Names are managed in Profile, like chess.com's settings. */}
-        <p className="text-xs text-taupe" data-testid="playing-as">
-          Playing as <span className="font-semibold text-parchment">{playingAs}</span>.{' '}
-          <Link to="/profile/guest" className="text-accent hover:underline">
-            Change name
-          </Link>
         </p>
 
         {gameState.players.length < 2 && <WaitingForOpponent roomId={roomId} />}
