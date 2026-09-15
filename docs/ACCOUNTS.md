@@ -109,15 +109,21 @@ Deployed verification (fill in per deploy):
 - [x] `src/services/matches.ts` reads `matches` for the current seat id (guest ids and account ids both work).
 - [x] Profile renders **Online games** (win/loss vs opponent, reason, moves, date) alongside local stats and the account card.
 
-### C6 — Verify + deploy — In progress
+### C6 — Verify + deploy — Done (2026-09-15)
+
 - [x] Local: 134 tests passing, lint clean, client + server bundles build.
 - [x] Local end-to-end: two browsers, names recorded to the live DB.
 - [x] Vercel env: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (production).
-- [x] Render env: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` (via the Render API; the CLI cannot set vars on existing services).
+- [x] Render env: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` (set via the Render API — `render services update` cannot set env vars on existing services).
+- [x] Production (`https://outwit-one.vercel.app`, commit `3ee0da6`): two browsers played room `PRODC52GB` (ProdCarol vs ProdDave, white won by resignation) and the row landed in Supabase with correct names, result, and move count. Bundle contains the Supabase URL and no service-role key. Profile renders the account card and Online games section; a `?code=` callback URL renders the app without crashing.
 - [ ] **Manual (dashboard, one-time):** Google OAuth needs a Google Cloud OAuth client (authorized redirect URI `https://hqgamvpcowjjgxkchtzu.supabase.co/auth/v1/callback`) pasted into Supabase → Authentication → Providers → Google. Email magic link works without this.
-- [ ] Production end-to-end after deploy: sign in by email → play a room → match appears under Online games.
+- [ ] **Manual:** sign in by email in production and confirm the account seat works end-to-end (same account on two devices shares the seat id and history).
 
-**Known behavior:** with email confirmations enabled (project default), signing in by magic link both confirms the address and creates the session. Redirect URLs are configured for production and localhost (5173 dev, 4173 preview).
+**Known behavior / gotchas:**
+- Redirect URLs are configured for production and localhost (5173 dev, 4173 preview). An earlier test email pointed at `http://localhost:3000` and expired — that was before `supabase config push` set `auth.site_url`; links now target the app.
+- Magic links are single-use and expire quickly; request a fresh one rather than reusing an old email.
+- Email confirmations remain enabled (hosted default): a magic-link sign-in both confirms the address and creates the session.
+- Match recording requires both Render env vars; without them the server runs guest-only and games are not stored.
 
 **Secrets:** never commit keys. Vercel/Render env vars only; `.env*` is gitignored. The service-role key is server-only (Render), never `VITE_`-prefixed.
 
