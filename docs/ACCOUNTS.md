@@ -126,6 +126,8 @@ Deployed verification (fill in per deploy):
   - Property added to **Search Console** via the Webmasters API (`webmasters/v3/sites`, API enabled on `outwit-auth`): `https://outwit-one.vercel.app/` with `siteOwner` permission. (Site Verification alone is not enough — the OAuth branding review checks Search Console ownership.)
   - Remaining (console, one click): GCP → Google Auth Platform → **Branding** → re-submit ("I have fixed the issues" → Request re-verification), then **Publish branding** once it passes. Non-sensitive scopes only (`openid`, email, profile) → lightweight review, typically minutes.
   - After publishing, the consent screen shows **Outwit** + logo instead of the Supabase URL.
+  - **Scopes:** the live authorize URL requests `email profile` — both **non-sensitive**, so the Data Access "requires verification" banner is boilerplate and no scope declaration is needed. The Data Access tables staying empty is expected.
+  - Note: the consent-screen config API (`clientauthconfig.googleapis.com/v1`) has no public discovery doc and could not be driven from the CLI; the re-verification click is console-only.
 - [ ] **Manual:** request a fresh magic link in production (the earlier one expired because `site_url` was still `localhost:3000` at the time; it is now `https://outwit-one.vercel.app`).
 
 **Known behavior / gotchas:**
