@@ -144,11 +144,13 @@ function OnlineGameView({ roomId }: { roomId: string }) {
   const { joinRoom, leaveRoom, makeMove, sendChat, resign: sendResign, offerDraw: sendOfferDraw, respondDraw } = useWebSocketActions();
   const { userId } = useAuthStore();
   const displayName = useProfileStore((s) => s.displayName);
-  const setDisplayName = useProfileStore((s) => s.setDisplayName);
-  const [nameDraft, setNameDraft] = useState('');
-  const [nameError, setNameError] = useState<string | null>(null);
+  const guestName = useProfileStore((s) => s.guestName);
+  const ensureGuestName = useProfileStore((s) => s.ensureGuestName);
   const [dismissedResultKey, setDismissedResultKey] = useState<string | null>(null);
   const navigate = useNavigate();
+
+  // Name we're playing under (matches what `useWebSocketActions` sends).
+  const playingAs = displayName ?? guestName ?? ensureGuestName();
 
   useEffect(() => {
     joinRoom(roomId);
@@ -251,46 +253,18 @@ function OnlineGameView({ roomId }: { roomId: string }) {
         </div>
         <p className="text-sm text-taupe">
           {mySide ? `You are ${mySide}. ` : ''}
-          {displayName ? `Playing as ${displayName}. ` : ''}
           {gameState.result.status === 'in-progress'
             ? `${gameState.board.sideToMove === 'white' ? 'White' : 'Black'} to move.`
             : 'Game over.'}
         </p>
 
-        {/* Name editor: lets a player who followed an invite link set a name. */}
-        <div className="flex flex-col gap-1">
-          <label htmlFor="game-display-name" className="text-xs font-semibold uppercase tracking-wide text-taupe">
-            Your name
-          </label>
-          <div className="flex gap-2">
-            <input
-              id="game-display-name"
-              value={nameDraft}
-              onChange={(e) => { setNameDraft(e.target.value); setNameError(null); }}
-              placeholder={displayName ?? 'Guest ####'}
-              maxLength={20}
-              className="min-w-0 flex-1 rounded-lg bg-primary px-3 py-2 text-sm text-parchment outline-none placeholder:text-taupe focus:ring-2 focus:ring-accent"
-            />
-            <button
-              type="button"
-              onClick={() => {
-                const ok = setDisplayName(nameDraft);
-                setNameError(ok ? null : 'Name must be 2–20 characters.');
-                if (ok) {
-                  setNameDraft('');
-                  // Re-send the join so the server updates this seat's name.
-                  // Safe while waiting; during a live game the next join also
-                  // carries it (the server keeps seat bindings stable).
-                  joinRoom(roomId);
-                }
-              }}
-              className="shrink-0 rounded-lg border border-wood-edge px-3 py-2 text-sm font-semibold transition hover:border-accent hover:text-accent"
-            >
-              Save
-            </button>
-          </div>
-          {nameError && <p role="alert" className="text-xs text-danger">{nameError}</p>}
-        </div>
+        {/* Names are managed in Profile, like chess.com's settings. */}
+        <p className="text-xs text-taupe" data-testid="playing-as">
+          Playing as <span className="font-semibold text-parchment">{playingAs}</span>.{' '}
+          <Link to="/profile/guest" className="text-accent hover:underline">
+            Change name
+          </Link>
+        </p>
 
         {gameState.players.length < 2 && <WaitingForOpponent roomId={roomId} />}
 

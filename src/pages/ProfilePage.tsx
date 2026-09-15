@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { AccountCard } from '@/components/AccountCard';
+import { DisplayNameForm } from '@/components/DisplayNameForm';
 import { fetchMatchesFor, type OnlineMatch } from '@/services/matches';
-import { useAuthStore, useStatsStore } from '@/stores';
+import { seedDisplayNameFromAccount, useAuthStore, useStatsStore } from '@/stores';
 import { REASON_LABELS } from '@/stores/statsStore';
 import type { LocalMatchRecord } from '@/stores/statsStore';
 
@@ -30,7 +31,14 @@ export function ProfilePage() {
   const matches = useStatsStore((s) => s.matches);
   const userId = useAuthStore((s) => s.userId);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const email = useAuthStore((s) => s.email);
   const [onlineMatches, setOnlineMatches] = useState<OnlineMatch[]>([]);
+
+  // Mirror chess.com: signing in gives you a name (from your account) unless you
+  // already chose one.
+  useEffect(() => {
+    if (isAuthenticated) seedDisplayNameFromAccount(email);
+  }, [isAuthenticated, email]);
 
   useEffect(() => {
     let cancelled = false;
@@ -57,6 +65,8 @@ export function ProfilePage() {
       </p>
 
       <AccountCard />
+
+      <DisplayNameForm />
 
       <section aria-label="Local stats" className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatCard label="Games" value={total} />

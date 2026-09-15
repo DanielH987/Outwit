@@ -8,37 +8,27 @@ import type { GameRoom } from '@/types';
 export function LobbyPage() {
   const [rooms] = useState<GameRoom[]>([]);
   const [roomName, setRoomName] = useState('');
-  const [nameDraft, setNameDraft] = useState('');
-  const [nameError, setNameError] = useState<string | null>(null);
   const navigate = useNavigate();
   const localResult = useLocalGameStore((s) => s.result);
   const localMoves = useLocalGameStore((s) => s.moveHistory.length);
   const localInProgress = localResult.status === 'in-progress' && localMoves > 0;
   const displayName = useProfileStore((s) => s.displayName);
-  const setDisplayName = useProfileStore((s) => s.setDisplayName);
+  const guestName = useProfileStore((s) => s.guestName);
+  const ensureGuestName = useProfileStore((s) => s.ensureGuestName);
 
   useEffect(() => {
     webSocketService.connect();
     return () => {};
   }, []);
 
-  const saveName = (): boolean => {
-    // Nothing typed: keep the current name (or the generated guest fallback).
-    if (nameDraft.trim() === '' && displayName) return true;
-    const value = nameDraft.trim() === '' ? displayName ?? '' : nameDraft;
-    if (value === '') return true;
-    const ok = setDisplayName(value);
-    setNameError(ok ? null : 'Name must be 2–20 characters.');
-    return ok;
-  };
+  // Name shown in the "you'll play as" line (persisted guest name until set).
+  const playingAs = displayName ?? guestName ?? ensureGuestName();
 
   const createGame = () => {
-    if (!saveName()) return;
     navigate(`/game/${generateInviteCode()}`);
   };
 
   const joinOnline = () => {
-    if (!saveName()) return;
     const raw = roomName.trim();
     if (!raw) return;
     // Codes are normalized; anything else stays a free-text room name.
@@ -81,20 +71,13 @@ export function LobbyPage() {
           may take up to a minute while the server wakes.
         </p>
 
-        <div className="mb-4 flex max-w-sm flex-col gap-1">
-          <label htmlFor="display-name" className="text-xs font-semibold uppercase tracking-wide text-taupe">
-            Your name
-          </label>
-          <input
-            id="display-name"
-            value={nameDraft}
-            onChange={(e) => { setNameDraft(e.target.value); setNameError(null); }}
-            placeholder={displayName ?? 'Guest ####'}
-            maxLength={20}
-            className="rounded-lg bg-primary px-3 py-2 text-sm text-parchment outline-none placeholder:text-taupe focus:ring-2 focus:ring-accent"
-          />
-          {nameError && <p role="alert" className="text-xs text-danger">{nameError}</p>}
-        </div>
+        {/* Name lives in Profile (chess.com-style: settings, not the lobby). */}
+        <p className="mb-4 text-xs text-taupe" data-testid="playing-as">
+          Playing as <span className="font-semibold text-parchment">{playingAs}</span>.{' '}
+          <Link to="/profile/guest" className="text-accent hover:underline">
+            Change name
+          </Link>
+        </p>
 
         <div className="flex flex-col gap-4 sm:flex-row sm:items-stretch">
           <div className="flex flex-1 flex-col rounded-xl border border-wood-edge bg-primary/40 p-4">

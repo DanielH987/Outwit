@@ -66,7 +66,7 @@ server/           # WebSocket multiplayer server (tsx), driven by src/engine/
 - `/` — Home page with calls to action.
 - `/lobby` — Game lobby; list or create rooms.
 - `/game/:gameId` — Active game room.
-- `/profile/:username` — Player profile placeholder.
+- `/profile/:username` — Account sign-in, display name, and match history.
 
 ## Current State
 

@@ -32,7 +32,7 @@
 
 - **No authentication in Phase A.** Playing a friend does not need accounts; accounts solve *persistence, trust, and ratings*, which are Phase C.
 - **Named guests.** Players get a display name; seats remain anonymous ids. Name length 2–20 chars after trim; empty falls back to a generated `Guest ####`.
-- **Naming UI:** set/edit in the lobby **and** in the game side panel (so a player who lands on an invite link can still enter a name).
+- **Naming UI (revised 2026-09-15): set in Profile, chess.com-style.** chess.com never asks for a username in the lobby or mid-game — you get one at signup and change it in Settings → Account. Outwit mirrors that: the name is edited in a **Display name** section on the Profile page (`src/components/DisplayNameForm.tsx`). The lobby and the game panel only *show* "Playing as X" with a **Change name** link, so naming has one predictable home and a player following an invite link can still reach it in one tap.
 - **Invite codes:** generated rooms use a 6-character code from `ABCDEFGHJKMNPQRSTUVWXYZ23456789` (no `I`, `O`, `0`, `1`). Free-text room names continue to work.
 - **Persistent device identity** via `localStorage` + Web Locks: the primary tab of a browser uses the device id (so closing and reopening the tab keeps your seat within a room's 30-minute TTL); extra tabs get ephemeral ids so two tabs remain two players.
 - **Budget: free tier only.** Render free (sleeps when idle) + Supabase free (pauses after ~1 week of inactivity) when Phase C lands.
@@ -45,9 +45,10 @@
 
 Goal: friend play feels intentional — real names, a "create game → copy link" flow.
 
-- [x] Add `src/stores/profileStore.ts`: `displayName: string | null`, `setDisplayName(name)` (trim, 2–20 chars), persisted to `localStorage` as `outwit-profile`. Kept separate from `authStore` (seat identity). Exported from `src/stores/index.ts` (plus `effectiveDisplayName()` with a per-tab stable `Guest ####` fallback).
+- [x] Add `src/stores/profileStore.ts`: `displayName: string | null` (an explicit choice, or seeded from a signed-in account), `guestName: string | null` (**persisted** auto-generated `Guest ####` fallback), `setDisplayName`, `ensureGuestName`, `effectiveDisplayName`, `seedDisplayNameFromAccount`. Persisted to `localStorage` as `outwit-profile`. Kept separate from `authStore` (seat identity).
+  - Bug fixed: the guest fallback used to be regenerated per page load (`let guestFallback`), so a guest's name silently changed on every refresh. It is now persisted; a new `DisplayNameForm.test.tsx` + `profileStore.test.ts` cover it.
 - [x] Add `src/utils/inviteCode.ts`: `generateInviteCode()` (6 chars, `ABCDEFGHJKMNPQRSTUVWXYZ23456789`), `normalizeInviteCode`, `isValidInviteCode`, `inviteUrl`. Unit-tested (never I/O/0/1, length/alphabet, case-normalization).
-- [x] Lobby (`src/pages/LobbyPage.tsx`): "Your name" field, **Create game** → `/game/<CODE>`, "join with code" (codes normalized; free-text room names still accepted), inline validation error.
+- [x] Lobby (`src/pages/LobbyPage.tsx`): **Create game** → `/game/<CODE>`, "join with code" (codes normalized; free-text room names still accepted), and a "Playing as X · Change name" line (no name input — see the revised naming-ui decision above).
 - [x] Game panel (`src/pages/GamePage.tsx`): name editor with **Save**; **Waiting for opponent** card (`src/components/WaitingForOpponent.tsx`) with room code, read-only invite link, **Copy** (`navigator.clipboard` + selectable fallback), and **Share…** when the Web Share API exists.
 - [x] Display name flows through the protocol: `useWebSocketActions` sends `effectiveDisplayName()` as `username` on `join-room` and `send-chat`; players list and chat show it.
 - [x] Tests: `inviteCode.test.ts`, `profileStore.test.ts`, `WaitingForOpponent.test.tsx`, updated `LobbyProfile.test.tsx`.

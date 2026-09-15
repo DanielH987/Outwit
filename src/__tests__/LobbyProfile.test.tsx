@@ -11,7 +11,7 @@ import { useStatsStore } from '../stores/statsStore';
 describe('LobbyPage', () => {
   beforeEach(() => {
     useLocalGameStore.getState().reset();
-    useProfileStore.setState({ displayName: null });
+    useProfileStore.setState({ displayName: null, guestName: null });
   });
 
   it('shows local pass-and-play CTA and links to /game/local', () => {
@@ -29,21 +29,19 @@ describe('LobbyPage', () => {
     expect(screen.getByRole('link', { name: /Resume local game/i })).toHaveAttribute('href', '/game/local');
   });
 
-  it('saves the display name and rejects invalid ones', async () => {
-    const user = userEvent.setup();
+  it('shows the name being played as, with a link to change it', () => {
     render(<MemoryRouter><LobbyPage /></MemoryRouter>);
+    const line = screen.getByTestId('playing-as');
+    expect(line).toHaveTextContent(/Playing as/);
+    // Guest fallback is generated on demand.
+    expect(line.textContent).toMatch(/Guest \d{4}/);
+    expect(screen.getByRole('link', { name: /Change name/i })).toHaveAttribute('href', '/profile/guest');
+  });
 
-    const input = screen.getByLabelText(/Your name/i);
-    await user.type(input, 'x');
-    await user.type(input, '   ');
-    // Invalid: single char — error shown, nothing stored.
-    await user.click(screen.getByRole('button', { name: /Create room/i }));
-    expect(useProfileStore.getState().displayName).toBeNull();
-
-    await user.clear(input);
-    await user.type(input, 'Alice');
-    await user.click(screen.getByRole('button', { name: /Create room/i }));
-    expect(useProfileStore.getState().displayName).toBe('Alice');
+  it('uses the saved display name in the lobby', () => {
+    useProfileStore.getState().setDisplayName('Alice');
+    render(<MemoryRouter><LobbyPage /></MemoryRouter>);
+    expect(screen.getByTestId('playing-as')).toHaveTextContent('Alice');
   });
 
   it('create game navigates to a generated 6-character room code', async () => {
