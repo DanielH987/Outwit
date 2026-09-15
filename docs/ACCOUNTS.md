@@ -123,6 +123,7 @@ Deployed verification (fill in per deploy):
 - [ ] **Brand verification (in progress, 2026-09-15).** Google's consent screen shows the redirect domain (`hqgamvpcowjjgxkchtzu.supabase.co`) until the OAuth app's name + logo are *verified and published*. Prerequisites done:
   - Legal pages live: `/privacy`, `/terms`, linked from a site-wide footer (commit `c3e8fb0`).
   - Homepage domain ownership verified via the **Site Verification API** (`siteverification.googleapis.com`, project `outwit-auth`): `https://outwit-one.vercel.app/` owner `hootinid@gmail.com`. Meta tag `google-site-verification` in `index.html` (commit `ddb2865`).
+  - Property added to **Search Console** via the Webmasters API (`webmasters/v3/sites`, API enabled on `outwit-auth`): `https://outwit-one.vercel.app/` with `siteOwner` permission. (Site Verification alone is not enough — the OAuth branding review checks Search Console ownership.)
   - Remaining (console, one click): GCP → Google Auth Platform → **Branding** → re-submit ("I have fixed the issues" → Request re-verification), then **Publish branding** once it passes. Non-sensitive scopes only (`openid`, email, profile) → lightweight review, typically minutes.
   - After publishing, the consent screen shows **Outwit** + logo instead of the Supabase URL.
 - [ ] **Manual:** request a fresh magic link in production (the earlier one expired because `site_url` was still `localhost:3000` at the time; it is now `https://outwit-one.vercel.app`).
