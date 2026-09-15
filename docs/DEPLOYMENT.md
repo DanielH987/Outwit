@@ -338,3 +338,5 @@ Useful commands:
 - Room persistence/history (database).
 - Time controls/clocks (no time-control rule exists yet).
 - AI opponent.
+
+<!-- CI/CD verification 2026-09-16 -->
