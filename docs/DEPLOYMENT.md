@@ -65,6 +65,69 @@ Browser ── HTTPS ──▶ Vercel (static Vite build, SPA rewrites)
 | `OUTWIT_ROOM_TTL_SECONDS` | Render (optional) | `1800` | How long an abandoned room (no connected clients) is kept for reconnects before GC. Defaults to 1800 (30 min). |
 | `OUTWIT_PORT` | local only | e.g. `3001` | Optional local port override. On Render, the server must use the platform-provided `PORT`. |
 
+## Bandwidth Budget (measured 2026-09-15)
+
+Render's free Hobby workspace includes **5 GB of outbound bandwidth per month** (cut from 100 GB in April 2026); above that it suspends services unless a card is attached ($0.15/GB). Outwit's server was suspended on 2026-09-15 after using **10.2 GB in ~2 days**. Measured breakdown (Render metrics API, hourly, plus local benchmarks):
+
+| Activity | Measured cost | 5 GB buys | Notes |
+| --- | --- | --- | --- |
+| **One game** (full game, two players) | **~80 KB** | ~65,000 games | Server→client `game-state` averages 2.3 KB; ~1 KB/move across both clients. Gameplay is effectively free. |
+| Heartbeat | 28 bytes / 3 s / player | ~0.8 MB/day connected | App-level JSON `ping`/`pong`. |
+| **One deploy** | **0 MB outbound** | unlimited | Deploys are **inbound** (git clone + `npm ci`); Render bills only outbound. Verified: 24 deploys on 2026-09-15 produced **0.38 MB** total outbound. |
+| **Infinite join/broadcast loop** (bug, fixed) | **74 MB/s per tab** | 5 GB in ~70 s | The server OOM era bug: `join-room` → broadcast → re-render → `join-room`. ~424k round-trips in 5 s in a local reproduction. 7.3 GB landed in the two hours it was live. |
+
+**Conclusion:** the suspension was caused by the loop bug, not by deploying or playing. Deploys are free (outbound-wise); gameplay is trivially cheap. The only meaningful risk is another runaway broadcast loop, which the `useCallback` stability work and the join-dedupe in `src/services/websocket.ts` prevent.
+
+## CI/CD Pipeline
+
+### Current state
+
+| Piece | Trigger | What happens | Cost/limit |
+| --- | --- | --- | --- |
+| **Frontend (Vercel)** | `npx vercel@latest --prod --yes` (manual CLI) | Vercel runs `npm run build` on its own builders, uploads `dist/`, aliases `outwit-one.vercel.app`. | Hobby: 100 deploys/day, 1 concurrent build, 100 MB CLI upload cap. Deploy bandwidth is Vercel's, not Render's. |
+| **Backend (Render)** | **Auto-deploy on every push to `main`** (GitHub connected) | Render clones the repo, runs `npm ci && npm run build:server`, then `npm run start:server`. | No deploy-count limit; outbound bytes only. ~1.5 min per build. |
+| **Database (Supabase)** | `supabase db push` / `config push` (manual, rare) | Applies migrations / auth config to the hosted project. | Free tier. |
+
+Both deploy paths are independent — a frontend deploy does **not** trigger a Render build, and a Render build does not touch Vercel. That is already the "deploy front and back separately" model; the trigger is just different (CLI vs git push).
+
+### Pain points
+
+1. **Render rebuilds on every push**, including docs-only commits. ~1.5 min and a container spin-up each time, with no code that the server uses.
+2. **Vercel is CLI-only** — no preview deployments, no automatic deploy on push, and the local machine is required to ship frontend changes.
+3. **Nothing checks the other side.** A frontend change that requires a server protocol change can ship before the server does (or vice versa), briefly breaking online play.
+
+### Recommended improvements (not yet implemented)
+
+1. **Render build filters** — skip backend builds when only frontend/docs changed:
+   ```bash
+   render services update srv-dajpo9m7bikc73d1ge8g \
+     --build-filter-path server --build-filter-path src/engine \
+     --build-filter-path src/types --build-filter-path package.json \
+     --build-filter-path package-lock.json
+   ```
+   Render then builds only when one of those paths changes. (`--build-filter-ignored-path` can also exclude `docs/`.)
+2. **Connect Vercel to GitHub** — `npx vercel@latest git connect` gives push-to-deploy plus PR preview URLs, removing the manual CLI step and the "did I remember to deploy the frontend?" failure mode. Preview URLs are free on Hobby.
+3. **Batch deploys** — not a bandwidth issue (deploys cost 0 outbound) but a *build-minutes* and *focus* one: commit meaningful units, not every doc tweak.
+4. **Order protocol changes** — when a change touches `src/types/index.ts` (shared wire types), deploy the **server first** (backward-compatible: old clients ignore new fields), then the client. Never remove a field in the same deploy that stops sending it.
+5. **Optional: split CI gates** — a GitHub Action running `npm test && npm run lint && npm run build` on PRs so failures are caught before either host builds. Currently these run locally only.
+
+### Suggested day-to-day workflow
+
+```bash
+# 1. Work + verify locally
+npm test && npm run lint && npm run build
+
+# 2. Commit and push (Render auto-builds if server/engine/types/package changed)
+git add . && git commit -m "..." && git push
+
+# 3. Ship the client when the frontend changed
+npx vercel@latest --prod --yes
+
+# 4. Verify
+curl -s -o /dev/null -w "%{http_code}\n" https://outwit-one.vercel.app/
+curl -s https://outwit-server.onrender.com/stats
+```
+
 ## Verified Current State (as of 2026-09-14)
 
 Evidence gathered before planning; re-verify if stale.
@@ -82,7 +145,7 @@ Evidence gathered before planning; re-verify if stale.
 | Room accumulation (fixed 2026-09-14) | Abandoned rooms were never dropped (a room survived as long as a disconnected seat existed), so `/stats` showed growing `rooms`. **Fix:** `sweepAbandonedRooms` runs every 60 s and drops rooms with no connected clients after `OUTWIT_ROOM_TTL_SECONDS` (default 1800). |
 | Frozen board / stuck turns (fixed 2026-09-14) | Symptom: after a reconnect/refresh, one player's board stopped receiving updates while their opponent's did. Cause: `removeClientFromRoom` unconditionally deleted the seat binding; a late `close` from the **replaced** socket detached the **new** socket from `room.players`, so it received no broadcasts (and could still send phantom moves). **Fix:** `removeClientFromRoom` only unbinds when the closing socket is still the current binding; `handleMessage` ignores actions from replaced sockets (`'This session was replaced by a newer connection.'`); spectator seats also bind in `room.spectators` instead of `room.players`. Regression test: "a late close from a replaced socket does not detach the new connection". |
 | Two tabs stole each other's seat (fixed 2026-09-14) | Identity was persisted in `localStorage`, so two tabs in the same browser shared one `userId` and the second tab replaced the first (one tab showed both as the same player; the other never updated). **Fix:** `authStore` persists to `sessionStorage` (per-tab), so two tabs are two players and a refresh keeps the seat. |
-| Render service suspended for billing (2026-09-16) | Symptom: online games hang on "Connecting to server..."; `curl https://outwit-server.onrender.com/` returns an HTML page reading **"This service has been suspended by its owner."**; WSS handshakes get **503**. Cause: Render suspended the service for a **billing** reason (`render services list --output json` → `"suspended": "suspended", "suspenders": ["billing"]`). The static site keeps working (Vercel is unaffected), so `/game/local` still plays. **Fix requires the dashboard** — the API refuses programmatic resume (`400 only services suspended by a user can be resumed`). Go to https://dashboard.render.com/web/srv-dajpo9m7bikc73d1ge8g, resolve the billing issue (verify the payment method / free-tier usage), then resume the service and `render deploys create srv-dajpo9m7bikc73d1ge8g --wait`. |
+| Render service suspended for billing (2026-09-16) | Symptom: online games hang on "Connecting to server..."; `curl https://outwit-server.onrender.com/` returns an HTML page reading **"This service has been suspended by its owner."**; WSS handshakes get **503**. Cause: the free Hobby workspace hit its **5 GB/month outbound bandwidth** limit (Render's metric, reduced from 100 GB in April 2026). Root cause of the usage was the infinite join/broadcast loop bug — see the Bandwidth Budget section for measurements. The static site keeps working (Vercel is unaffected), so `/game/local` still plays. **Fix requires the dashboard** — the API refuses programmatic resume (`400 only services suspended by a user can be resumed`). Either wait for the monthly reset, or add a card at https://dashboard.render.com/web/srv-dajpo9m7bikc73d1ge8g and resume (`render deploys create srv-dajpo9m7bikc73d1ge8g --wait`). |
 | Server ignores host `PORT` (fixed) | Now `Number(process.env.PORT ?? process.env.OUTWIT_PORT ?? 3001)` |
 | Raw WS server, no HTTP response (fixed) | Now `node:http` server returns `200 ok` on `/` + JSON stats on `/stats`; WS at `/ws` via `{ server, path: '/ws' }`, binds `0.0.0.0` |
 | Local online default (fixed) | `src/services/websocket.ts` now defaults to `ws://localhost:3001` and strips trailing `/`; appends `/ws` once |
