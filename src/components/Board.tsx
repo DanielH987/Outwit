@@ -33,7 +33,12 @@ export function Board({ state, selectedChipId, legalMoves, onTileClick, lastMove
       (pos.x === lastMove.to.x && pos.y === lastMove.to.y));
 
   return (
-    <div className="rounded-xl bg-board-frame p-2 shadow-xl shadow-black/40">
+    // Width-driven at every size: the wrapper in GamePage caps the width by the
+    // viewport height on desktop (`calc((100dvh - reserve) * 0.9)`, our 9:10
+    // aspect), so the whole board fits without scrolling. Do NOT make this
+    // height-driven: `h-full` + aspect can overflow the wrapper and overlap the
+    // sidebar on tall screens.
+    <div className="board-container mx-auto w-full rounded-xl bg-board-frame p-2 shadow-xl shadow-black/40">
       <div
         className="grid aspect-[9/10] w-full select-none overflow-hidden rounded-md ring-1 ring-black/30"
         style={{ gridTemplateColumns: 'repeat(9, minmax(0, 1fr))', gridTemplateRows: 'repeat(10, minmax(0, 1fr))' }}
@@ -83,7 +88,7 @@ export function Board({ state, selectedChipId, legalMoves, onTileClick, lastMove
                 )}
                 {x === 0 && (
                   <span
-                    className={`pointer-events-none absolute left-0.5 top-0 text-[0.5rem] font-bold leading-tight sm:text-[0.65rem] ${coordinateColor}`}
+                    className={`board-coord pointer-events-none absolute left-0.5 top-0 font-bold leading-tight ${coordinateColor}`}
                     data-testid={`rank-label-${rankLabel(y)}`}
                     aria-hidden
                   >
@@ -92,7 +97,7 @@ export function Board({ state, selectedChipId, legalMoves, onTileClick, lastMove
                 )}
                 {y === 9 && (
                   <span
-                    className={`pointer-events-none absolute bottom-0 right-0.5 text-[0.5rem] font-bold leading-tight sm:text-[0.65rem] ${coordinateColor}`}
+                    className={`board-coord pointer-events-none absolute bottom-0 right-0.5 font-bold leading-tight ${coordinateColor}`}
                     data-testid={`file-label-${fileLabel(x)}`}
                     aria-hidden
                   >

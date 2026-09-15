@@ -46,7 +46,7 @@ export function GameClocks() {
   }, [inProgress]);
 
   return (
-    <div className="flex w-full max-w-lg justify-between gap-4">
+    <div className="flex w-full justify-between gap-2 sm:gap-4">
       <ClockBadge player="white" isActive={inProgress && sideToMove === 'white'} />
       <ClockBadge player="black" isActive={inProgress && sideToMove === 'black'} />
     </div>

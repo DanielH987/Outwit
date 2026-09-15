@@ -68,21 +68,11 @@ function LocalGameView() {
   const { highlight: lastMove, onHighlight } = useBoardHighlight(moveHistory);
 
   return (
-    <main className="flex flex-1 flex-col items-center gap-4 px-4 py-8">
-      <div className="flex w-full max-w-4xl items-center justify-between gap-3">
-        <Link to="/lobby" className="text-sm font-semibold text-taupe transition hover:text-accent">
-          ← Lobby
-        </Link>
-        <h2 className="text-2xl font-bold">Local game</h2>
-        <span className="w-14" aria-hidden />
-      </div>
-      <p className="max-w-md text-center text-sm text-taupe">
-        Pass-and-play. White (Player 1) moves first. Standard chips must slide as far as possible; the
-        power chip (★) may stop anywhere along its line.
-      </p>
-      <GameClocks />
-      <div className="grid w-full max-w-4xl gap-4 lg:grid-cols-[2fr_1fr]">
-        <div className="mx-auto w-full max-w-lg lg:max-w-none">
+    <main className="flex flex-1 flex-col lg:h-dvh lg:flex-row lg:items-stretch lg:overflow-hidden">
+      {/* Board column. Desktop: board sized from viewport height (9:10 → ×0.9)
+          with a hair of margin, so it nearly touches top and bottom. */}
+      <div className="flex flex-1 items-start justify-center px-0 py-2 lg:items-center lg:px-3">
+        <div className="w-full max-w-[min(100%,calc((100dvh-15rem)*0.9))] lg:max-w-[min(100%,calc((100dvh-1.5rem)*0.9))]">
           <Board
             state={state}
             selectedChipId={selectedChipId}
@@ -91,22 +81,34 @@ function LocalGameView() {
             lastMove={lastMove}
           />
         </div>
-        <div className="flex flex-col gap-4">
-          <GameControls
-            result={result}
-            sideToMove={state.sideToMove}
-            pendingDrawOfferFrom={pendingDrawOfferFrom}
-            onResign={resign}
-            onOfferDraw={offerDraw}
-            onAcceptDraw={acceptDraw}
-            onDeclineDraw={declineDraw}
-            onReset={reset}
-          />
-          <div className="lg:flex-1">
-            <MoveHistoryPanel history={moveHistory} onHighlight={onHighlight} highlightedMove={lastMove} />
-          </div>
-        </div>
       </div>
+
+      {/* Info column: clocks, actions, history. On desktop it's a fixed-width
+          right panel that scrolls internally; on phones it stacks under the
+          board like chess.com mobile. */}
+      <aside className="flex w-full flex-col gap-3 px-4 pb-4 sm:px-6 lg:h-full lg:w-80 lg:shrink-0 lg:overflow-y-auto lg:border-l lg:border-wood-edge/60 lg:px-4 lg:py-4 xl:w-96">
+        <div className="flex items-center justify-between gap-3">
+          <Link to="/lobby" className="text-sm font-semibold text-taupe transition hover:text-accent">
+            ← Lobby
+          </Link>
+          <h2 className="text-lg font-bold">Local game</h2>
+        </div>
+        <p className="hidden text-sm text-taupe lg:block">
+          Pass-and-play. Standard chips slide as far as possible; the power chip (★) may stop anywhere.
+        </p>
+        <GameClocks />
+        <GameControls
+          result={result}
+          sideToMove={state.sideToMove}
+          pendingDrawOfferFrom={pendingDrawOfferFrom}
+          onResign={resign}
+          onOfferDraw={offerDraw}
+          onAcceptDraw={acceptDraw}
+          onDeclineDraw={declineDraw}
+          onReset={reset}
+        />
+        <MoveHistoryPanel history={moveHistory} onHighlight={onHighlight} highlightedMove={lastMove} />
+      </aside>
     </main>
   );
 }
@@ -182,28 +184,9 @@ function OnlineGameView({ roomId }: { roomId: string }) {
   }
 
   return (
-    <main className="flex flex-1 flex-col items-center gap-4 px-4 py-8">
-      <div className="flex w-full max-w-4xl items-center justify-between gap-3">
-        <Link to="/lobby" className="text-sm font-semibold text-taupe transition hover:text-accent">
-          ← Lobby
-        </Link>
-        <h2 className="truncate text-center text-2xl font-bold">Room {roomId}</h2>
-        <span className="w-14" aria-hidden />
-      </div>
-      <p className="text-sm text-taupe">
-        {mySide ? `You are ${mySide}. ` : ''}
-        {username ? `Logged in as ${username}. ` : ''}
-        {gameState.result.status === 'in-progress'
-          ? `${gameState.board.sideToMove === 'white' ? 'White' : 'Black'} to move.`
-          : 'Game over.'}
-      </p>
-      {lastError && (
-        <p role="alert" className="rounded-lg bg-danger/25 px-3 py-1 text-sm text-danger">
-          {lastError}
-        </p>
-      )}
-      <div className="grid w-full max-w-4xl gap-4 lg:grid-cols-[2fr_1fr]">
-        <div className="mx-auto w-full max-w-lg lg:max-w-none">
+    <main className="flex flex-1 flex-col lg:h-dvh lg:flex-row lg:items-stretch lg:overflow-hidden">
+      <div className="flex flex-1 items-start justify-center px-0 py-2 lg:items-center lg:px-3">
+        <div className="w-full max-w-[min(100%,calc((100dvh-16rem)*0.9))] lg:max-w-[min(100%,calc((100dvh-1.5rem)*0.9))]">
           <Board
             state={boardState!}
             selectedChipId={selectedChipId}
@@ -212,62 +195,81 @@ function OnlineGameView({ roomId }: { roomId: string }) {
             lastMove={lastMove}
           />
         </div>
-        <div className="flex flex-col gap-4">
-          <div className="rounded-xl bg-surface p-4 text-sm text-parchment shadow-lg shadow-black/30">
-            <p className="mb-2 font-semibold">Players</p>
-            <ul className="space-y-1 text-sm text-parchment/90">
-              {gameState.players.map((p) => (
-                <li key={p.userId} className="flex items-center gap-2">
-                  <span
-                    className={['inline-block h-2 w-2 rounded-full', p.connected ? 'bg-success' : 'bg-wood-edge'].join(' ')}
-                    aria-label={p.connected ? 'connected' : 'disconnected'}
-                  />
-                  {p.username ?? p.userId} — <span className="text-taupe">{p.side}</span>
-                  {p.userId === userId && <span className="text-accent">(you)</span>}
-                </li>
-              ))}
-            </ul>
-            <div className="mt-4 flex gap-2">
-              <button
-                type="button"
-                className="flex-1 rounded-lg border border-wood-edge px-3 py-2 text-sm transition hover:border-danger hover:text-danger"
-                onClick={() => sendResign(roomId)}
-              >
-                Resign
-              </button>
-              {pendingFromOpponent && mySide ? (
-                <>
-                  <button
-                    type="button"
-                    className="flex-1 rounded-lg bg-accent px-3 py-2 text-sm font-semibold text-primary transition hover:bg-accent-hover"
-                    onClick={() => respondDraw(roomId, true)}
-                  >
-                    Accept draw
-                  </button>
-                  <button
-                    type="button"
-                    className="flex-1 rounded-lg border border-wood-edge px-3 py-2 text-sm transition hover:border-danger hover:text-danger"
-                    onClick={() => respondDraw(roomId, false)}
-                  >
-                    Decline
-                  </button>
-                </>
-              ) : (
+      </div>
+
+      <aside className="flex w-full flex-col gap-3 px-4 pb-4 sm:px-6 lg:h-full lg:w-80 lg:shrink-0 lg:overflow-y-auto lg:border-l lg:border-wood-edge/60 lg:px-4 lg:py-4 xl:w-96">
+        <div className="flex items-center justify-between gap-3">
+          <Link to="/lobby" className="text-sm font-semibold text-taupe transition hover:text-accent">
+            ← Lobby
+          </Link>
+          <h2 className="truncate text-lg font-bold">Room {roomId}</h2>
+        </div>
+        <p className="text-sm text-taupe">
+          {mySide ? `You are ${mySide}. ` : ''}
+          {username ? `Logged in as ${username}. ` : ''}
+          {gameState.result.status === 'in-progress'
+            ? `${gameState.board.sideToMove === 'white' ? 'White' : 'Black'} to move.`
+            : 'Game over.'}
+        </p>
+        {lastError && (
+          <p role="alert" className="rounded-lg bg-danger/25 px-3 py-1 text-sm text-danger">
+            {lastError}
+          </p>
+        )}
+        <div className="rounded-xl bg-surface p-4 text-sm text-parchment shadow-lg shadow-black/30">
+          <p className="mb-2 font-semibold">Players</p>
+          <ul className="space-y-1 text-sm text-parchment/90">
+            {gameState.players.map((p) => (
+              <li key={p.userId} className="flex items-center gap-2">
+                <span
+                  className={['inline-block h-2 w-2 rounded-full', p.connected ? 'bg-success' : 'bg-wood-edge'].join(' ')}
+                  aria-label={p.connected ? 'connected' : 'disconnected'}
+                />
+                {p.username ?? p.userId} — <span className="text-taupe">{p.side}</span>
+                {p.userId === userId && <span className="text-accent">(you)</span>}
+              </li>
+            ))}
+          </ul>
+          <div className="mt-4 flex gap-2">
+            <button
+              type="button"
+              className="flex-1 rounded-lg border border-wood-edge px-3 py-2 text-sm transition hover:border-danger hover:text-danger"
+              onClick={() => sendResign(roomId)}
+            >
+              Resign
+            </button>
+            {pendingFromOpponent && mySide ? (
+              <>
                 <button
                   type="button"
-                  className="flex-1 rounded-lg border border-wood-edge px-3 py-2 text-sm transition hover:border-accent hover:text-accent disabled:opacity-50"
-                  disabled={pendingFromMe}
-                  onClick={() => sendOfferDraw(roomId)}
+                  className="flex-1 rounded-lg bg-accent px-3 py-2 text-sm font-semibold text-primary transition hover:bg-accent-hover"
+                  onClick={() => respondDraw(roomId, true)}
                 >
-                  Offer draw
+                  Accept draw
                 </button>
-              )}
-            </div>
+                <button
+                  type="button"
+                  className="flex-1 rounded-lg border border-wood-edge px-3 py-2 text-sm transition hover:border-danger hover:text-danger"
+                  onClick={() => respondDraw(roomId, false)}
+                >
+                  Decline
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                className="flex-1 rounded-lg border border-wood-edge px-3 py-2 text-sm transition hover:border-accent hover:text-accent disabled:opacity-50"
+                disabled={pendingFromMe}
+                onClick={() => sendOfferDraw(roomId)}
+              >
+                Offer draw
+              </button>
+            )}
           </div>
-          <MoveHistoryPanel history={gameState.moveHistory} onHighlight={onHighlight} highlightedMove={lastMove} />
-          <ChatPanel roomId={roomId} sendChat={sendChat} mySide={mySide} />
         </div>
-      </div>
+        <MoveHistoryPanel history={gameState.moveHistory} onHighlight={onHighlight} highlightedMove={lastMove} />
+        <ChatPanel roomId={roomId} sendChat={sendChat} mySide={mySide} />
+      </aside>
     </main>
   );
 }
