@@ -74,6 +74,8 @@ interface Room {
   players: Map<string, ClientInfo>;
   spectators: Map<string, ClientInfo>;
   forfeitTimer: NodeJS.Timeout | null;
+  /** Epoch ms when the current disconnect-forfeit fires, if one is running. */
+  forfeitDeadline: number | null;
   lastActivityAt: number;
   /** True once this room's finished game has been persisted (idempotency). */
   recorded: boolean;
@@ -91,10 +93,17 @@ function supabaseAuthConfig(): SupabaseJwtConfig | null {
   return { url, jwtSecret: process.env.SUPABASE_JWT_SECRET };
 }
 
-/** Seconds after which a disconnected seat forfeits. Configurable via env. */
+/**
+ * Seconds after which a disconnected seat forfeits. Configurable via env.
+ *
+ * Default 30s: chess.com scales its reconnect window with the clock (10% of
+ * base time, min 30s, max 3m), but Outwit has no clock pressure — the game
+ * clock is informational. 30s (their minimum) survives a real wifi blip or an
+ * accidental refresh without making the opponent stare at a stalled board.
+ */
 function forfeitSeconds(): number {
   const parsed = Number.parseInt(process.env.OUTWIT_FORFEIT_SECONDS ?? '', 10);
-  return Number.isFinite(parsed) ? parsed : 60;
+  return Number.isFinite(parsed) ? parsed : 30;
 }
 
 function open(ws: WebSocket) {
@@ -123,6 +132,7 @@ function playerSummaries(room: Room): RoomPlayerSummary[] {
 
 function roomStatePayload(room: Room): GameStatePayload {
   const s = room.state;
+  const disconnected = s.players.find((p) => !p.connected && p.side !== null);
   return {
     roomId: room.id,
     board: { chips: s.board.chips, sideToMove: s.board.sideToMove },
@@ -130,6 +140,16 @@ function roomStatePayload(room: Room): GameStatePayload {
     moveHistory: s.moveHistory,
     result: s.result,
     pendingDrawFrom: s.pendingDrawFrom,
+    // Present only while a seat is absent and the game is still live.
+    forfeit:
+      s.result.status === 'in-progress' && disconnected && room.forfeitDeadline !== null
+        ? {
+            side: disconnected.side as PlayerId,
+            deadline: room.forfeitDeadline,
+            serverNow: Date.now(),
+            graceSeconds: forfeitSeconds(),
+          }
+        : null,
   };
 }
 
@@ -138,6 +158,7 @@ function clearForfeitTimer(room: Room) {
     clearTimeout(room.forfeitTimer);
     room.forfeitTimer = null;
   }
+  room.forfeitDeadline = null;
 }
 
 /** If someone is disconnected mid-game, the connected player wins after the grace period. */
@@ -150,12 +171,14 @@ function maybeStartForfeitTimer(room: Room) {
   const connectedPlayer = s.players.find((p) => p.connected);
   if (!disconnected || !connectedPlayer) return;
 
+  const grace = forfeitSeconds();
+  room.forfeitDeadline = Date.now() + grace * 1000;
   room.forfeitTimer = setTimeout(() => {
     if (s.result.status === 'in-progress' && !disconnected.connected) {
       s.result = forfeitResult(disconnected.side as PlayerId);
       broadcastState(room);
     }
-  }, forfeitSeconds() * 1000);
+  }, grace * 1000);
 }
 
 function roomUpdatePayload(room: Room): RoomUpdatePayload {
@@ -169,8 +192,10 @@ function roomUpdatePayload(room: Room): RoomUpdatePayload {
 function broadcastState(room: Room) {
   room.lastActivityAt = Date.now();
   clearForfeitTimer(room);
-  broadcastRoom(room, { type: 'game-state', payload: roomStatePayload(room) });
+  // Start the disconnect countdown *before* building the payload so the
+  // broadcast carries the deadline clients count down against.
   maybeStartForfeitTimer(room);
+  broadcastRoom(room, { type: 'game-state', payload: roomStatePayload(room) });
   maybeRecordFinishedMatch(room);
 }
 
@@ -242,6 +267,7 @@ function createRoom(roomId: string): Room {
     players: new Map(),
     spectators: new Map(),
     forfeitTimer: null,
+    forfeitDeadline: null,
     lastActivityAt: Date.now(),
     recorded: false,
   };

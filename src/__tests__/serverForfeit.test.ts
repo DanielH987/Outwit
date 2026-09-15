@@ -54,16 +54,29 @@ describe('disconnection-forfeit timer', () => {
     b.ws.send(JSON.stringify({ type: 'join-room', payload: { roomId, userId: b.userId, username: 'B' } }));
     await b.take('room-update', (p) => p.players.length === 2);
 
-    // A disconnects; B should win after the grace period.
+    // No countdown while both players are present.
+    const live = await b.take('game-state', () => true);
+    expect((live.payload as any).forfeit).toBeNull();
+
+    // A disconnects; B should see a countdown, then win after the grace period.
     a.ws.close();
     // Server marks A disconnected, then after ~1s issues a forfeit.
-    await b.take('game-state', (p) => p.players.find((x: any) => !x.connected) !== undefined);
+    const disconnected = await b.take('game-state', (p) => p.players.find((x: any) => !x.connected) !== undefined);
+    const forfeit = (disconnected.payload as any).forfeit;
+    expect(forfeit).toMatchObject({ side: 'white', graceSeconds: 1 });
+    expect(typeof forfeit.deadline).toBe('number');
+    expect(typeof forfeit.serverNow).toBe('number');
+    expect(forfeit.deadline).toBeGreaterThanOrEqual(forfeit.serverNow);
+    expect(forfeit.deadline - forfeit.serverNow).toBeLessThanOrEqual(1000);
+
     const final = await b.take('game-state', (p) => p.result.status === 'finished');
     expect((final.payload as any).result).toEqual({
       status: 'finished',
       winner: 'black',
       reason: 'forfeit',
     });
+    // The countdown is cleared once the game is over.
+    expect((final.payload as any).forfeit).toBeNull();
   }, 10000);
 
   it('reconnecting inside the grace period cancels the forfeit', async () => {
@@ -77,16 +90,18 @@ describe('disconnection-forfeit timer', () => {
     await b.take('room-update', (p) => p.players.length === 2);
 
     a.ws.close();
-    await b.take('game-state', (p) => p.players.find((x: any) => !x.connected) !== undefined);
+    const disconnected = await b.take('game-state', (p) => p.players.find((x: any) => !x.connected) !== undefined);
+    expect((disconnected.payload as any).forfeit).not.toBeNull();
 
     // Reconnect with same userId before the grace period ends.
     const a2 = await connect();
     a2.ws.send(JSON.stringify({ type: 'join-room', payload: { roomId, userId: a.userId, username: 'A' } }));
     await a2.take('room-update', (p) => p.players.find((x: any) => x.userId === a.userId)?.connected === true);
     // Any game-state broadcast after the reconnect (e.g. the one the room got)
-    // should still be in progress.
+    // should still be in progress, with the countdown cleared.
     const state = await a2.take('game-state', () => true);
     expect((state.payload as any).result.status).toBe('in-progress');
+    expect((state.payload as any).forfeit).toBeNull();
 
     // After the grace window the game is still in progress.
     await new Promise((r) => setTimeout(r, 1200));

@@ -112,6 +112,18 @@ export interface RoomUpdatePayload {
   spectators: Array<{ userId: string; username: string | null; connected: boolean }>;
 }
 
+/** Server-side disconnect-forfeit countdown, present while a seat is absent. */
+export interface ForfeitCountdown {
+  /** Side that is disconnected and will forfeit. */
+  side: 'white' | 'black';
+  /** Epoch ms when the forfeit fires (server clock). */
+  deadline: number;
+  /** Server clock at broadcast time; lets clients correct for clock skew. */
+  serverNow: number;
+  /** Full grace period in seconds (for computing progress/labels). */
+  graceSeconds: number;
+}
+
 /** Authoritative game state broadcast to all room participants. */
 export interface GameStatePayload {
   roomId: string;
@@ -120,6 +132,8 @@ export interface GameStatePayload {
   moveHistory: Array<{ number: number; player: PlayerId; notation: string; chipId: string; from: Position; to: Position }>;
   result: import('@/engine').GameResult;
   pendingDrawFrom: PlayerId | null;
+  /** Set while an opponent is disconnected and the forfeit timer is running. */
+  forfeit: ForfeitCountdown | null;
 }
 
 export interface ErrorPayload {

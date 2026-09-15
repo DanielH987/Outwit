@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Board } from '@/components/Board';
 import { ChatPanel } from '@/components/ChatPanel';
+import { ForfeitCountdownBanner } from '@/components/ForfeitCountdownBanner';
 import { GameClocks } from '@/components/GameClocks';
 import { GameControls } from '@/components/GameControls';
 import { GameOverDialog } from '@/components/GameOverDialog';
@@ -292,6 +293,15 @@ function OnlineGameView({ roomId }: { roomId: string }) {
         </div>
 
         {gameState.players.length < 2 && <WaitingForOpponent roomId={roomId} />}
+
+        {gameState.forfeit && (
+          <ForfeitCountdownBanner
+            forfeit={gameState.forfeit}
+            disconnectedName={
+              gameState.players.find((p) => p.side === gameState.forfeit!.side)?.username ?? null
+            }
+          />
+        )}
 
         {lastError && (
           <p role="alert" className="rounded-lg bg-danger/25 px-3 py-1 text-sm text-danger">

@@ -132,6 +132,7 @@ Deployed verification (fill in per deploy):
 - Magic links are single-use and expire quickly; request a fresh one rather than reusing an old email.
 - Email confirmations remain enabled (hosted default): a magic-link sign-in both confirms the address and creates the session.
 - Match recording requires both Render env vars; without them the server runs guest-only and games are not stored.
+- **Disconnect countdown:** while a seat is absent mid-game, `game-state` carries `forfeit: { side, deadline, serverNow, graceSeconds }`. Clients count down against `deadline` using the `serverNow` offset (clock-skew safe) and clear it when the opponent returns or the game ends. Implemented in `server/index.ts` (`maybeStartForfeitTimer` / `roomStatePayload`) and `src/components/ForfeitCountdownBanner.tsx`.
 
 **Secrets:** never commit keys. Vercel/Render env vars only; `.env*` is gitignored. The service-role key is server-only (Render), never `VITE_`-prefixed.
 

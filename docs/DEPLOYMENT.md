@@ -61,7 +61,7 @@ Browser ── HTTPS ──▶ Vercel (static Vite build, SPA rewrites)
 | `VITE_SUPABASE_ANON_KEY` | Vercel, production | anon JWT | Public by design (ships in the bundle). Never use the service-role key here. |
 | `SUPABASE_URL` | Render | `https://hqgamvpcowjjgxkchtzu.supabase.co` | Enables JWT verification + match recording; optional (server runs guest-only without it). |
 | `SUPABASE_SERVICE_ROLE_KEY` | Render | service-role JWT | **Secret.** Server-only; grants write access to `matches`. Set via the Render API — `render services update` cannot set env vars. |
-| `OUTWIT_FORFEIT_SECONDS` | Render | `60` | Disconnect-forfeit grace period. Defaults to 60 if unset. |
+| `OUTWIT_FORFEIT_SECONDS` | Render (optional) | unset → code default `30` | Disconnect-forfeit grace period. Not set on Render; the code default (30s) applies. chess.com scales this with the clock (10% of base time, 30s–3m); Outwit has no clock pressure, so it uses their 30s minimum. |
 | `OUTWIT_ROOM_TTL_SECONDS` | Render (optional) | `1800` | How long an abandoned room (no connected clients) is kept for reconnects before GC. Defaults to 1800 (30 min). |
 | `OUTWIT_PORT` | local only | e.g. `3001` | Optional local port override. On Render, the server must use the platform-provided `PORT`. |
 
@@ -174,7 +174,7 @@ M1 implementation notes: `src/services/websocket.ts` normalizes `VITE_WS_URL` (s
     --build-command "npm ci && npm run build:server" \
     --start-command "npm run start:server" \
     --health-check-path / \
-    --env-var OUTWIT_FORFEIT_SECONDS=60 \
+    --env-var OUTWIT_FORFEIT_SECONDS=30 \
     --output json --confirm
   ```
 
@@ -211,7 +211,7 @@ M1 implementation notes: `src/services/websocket.ts` normalizes `VITE_WS_URL` (s
 - [x] **Scripted online smoke (agent):** two simulated WebSocket clients joined a fresh room on production: A white / B black, chat round-trip, illegal move rejected (`Illegal move.`), A resigns → B sees `{"status":"finished","winner":"black","reason":"resignation"}`. Script: `outwit-smoke.mjs` (temp, deleted after run). **PASS.**
 - [ ] **Interactive (human):** two devices/browsers, same `/game/<room>` — seats, moves, chat, draw offer/accept, resign all sync.
 - [ ] **Interactive (human):** refresh one client mid-game → same seat re-binds (same `localStorage` `userId`).
-- [ ] **Interactive (human):** close one client → opponent wins after ~60 s (`OUTWIT_FORFEIT_SECONDS=60`).
+- [ ] **Interactive (human):** close one client → opponent wins after ~30 s (`OUTWIT_FORFEIT_SECONDS=30`).
 - [ ] Browser devtools network tab shows WSS to `outwit-server.onrender.com`; no console errors.
 - [ ] PWA install/refresh behaves (hard refresh once if stale; `registerType: 'autoUpdate'`).
 
