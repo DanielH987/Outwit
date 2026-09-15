@@ -68,10 +68,11 @@ export function AppLayout() {
       <aside className="sticky top-0 hidden h-dvh w-20 shrink-0 flex-col items-center gap-2 border-r border-wood-edge/60 bg-surface/40 py-4 md:flex">
         <NavLink
           to="/"
-          aria-label="Outwit"
-          className="mb-2 flex h-11 w-11 items-center justify-center rounded-xl bg-accent/15 text-accent transition hover:bg-accent/25"
+          aria-label="Outwit home"
+          title="Home"
+          className="mb-2 flex h-12 w-12 items-center justify-center rounded-xl bg-accent/10 transition hover:bg-accent/25"
         >
-          <BoardIcon className="h-6 w-6" />
+          <img src="/icon-192.png" alt="" className="h-10 w-10 rounded-lg" />
         </NavLink>
         <nav className="flex w-full flex-col gap-1" aria-label="Main">
           {NAV_ITEMS.map((item) => (

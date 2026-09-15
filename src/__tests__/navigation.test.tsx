@@ -17,7 +17,7 @@ function renderAt(path: string) {
 describe('app navigation', () => {
   it('shows the wordmark and main nav links on the home page', () => {
     renderAt('/');
-    expect(screen.getByRole('link', { name: 'Outwit' })).toHaveAttribute('href', '/');
+    expect(screen.getByRole('link', { name: 'Outwit home' })).toHaveAttribute('href', '/');
     const navs = screen.getAllByRole('navigation', { name: 'Main' });
     expect(navs.length).toBeGreaterThan(0);
     for (const nav of navs) {
@@ -52,6 +52,6 @@ describe('app navigation', () => {
   it('renders a not-found page inside the shell', () => {
     renderAt('/nope');
     expect(screen.getByRole('heading', { name: '404' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Outwit' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Outwit home' })).toBeInTheDocument();
   });
 });
