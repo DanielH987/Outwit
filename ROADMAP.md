@@ -2,11 +2,11 @@
 
 This roadmap tracks where Outwit is today and where it is headed. Priorities are ordered to get to a fun, local two-player game first, then expand outward.
 
-## Current Phase: Complete (local + online playable)
+## Current Phase: Phase 6 — Identity & Accounts (Planned)
 
-The local pass-and-play game is fully playable at `/game/:gameId`. The multiplayer backend in `server/index.ts` and the client routing for online rooms are complete. All roadmap phases through Phase 5 are done; the next active effort is **deployment** (client on Vercel, WebSocket server on Render).
+Local + online playable and deployed. All phases through Phase 5 are done. The next active effort is **Phase A: named guests, invite links, and persistent device identity**, followed by **Phase C: accounts via Supabase** (email magic link + Google) when requested.
 
-→ Deployment plan and milestone checklist: [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md). Resume from the first unchecked milestone there.
+→ Milestones, locked decisions, and resume instructions: [`docs/ACCOUNTS.md`](docs/ACCOUNTS.md). Deployment runbook and incidents: [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
 
 ## Phase 1 — Define the Game (In Progress)
 
@@ -69,7 +69,7 @@ Product questions:
 
 - Should the game support AI opponents for solo practice?
 - What time controls should be available (blitz, rapid, untimed)?
-- Should user accounts be anonymous, guest-based, or persistent?
+- ~~Should user accounts be anonymous, guest-based, or persistent?~~ **Resolved (2026-09-15):** named guests for now (no auth); real accounts later via Supabase Auth with email magic link + Google OAuth. See [`docs/ACCOUNTS.md`](docs/ACCOUNTS.md).
 
 ## Long-Term Vision
 

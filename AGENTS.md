@@ -8,9 +8,9 @@ Build a local-playable prototype of **Outwit**, a custom strategic turn-based bo
 
 ## Current Phase
 
-Local + online playable. All roadmap phases through Phase 5 are complete.
+Local + online playable, deployed, and themed. All roadmap phases through Phase 5 are complete.
 
-**Active effort: deployment.** The milestone-based plan (M1–M6), locked decisions, env vars, and verification steps live in `docs/DEPLOYMENT.md`. Resume from the first unchecked milestone there; mark it `[x]` and commit per milestone.
+**Active effort: Phase 6 — identity & accounts.** The milestone-based plan (M6.1–M6.3), locked decisions, verified evidence, and Phase C (Supabase accounts) direction live in `docs/ACCOUNTS.md`. Resume from the first unchecked milestone there; mark it `[x]` and commit per milestone. Deployment runbook: `docs/DEPLOYMENT.md`.
 
 - Pages and routing are in place.
 - State management is Zustand.
@@ -73,11 +73,13 @@ When asked to add features, prefer this order:
 | --------------- | --------------- |
 | `src/pages/*` | Route-level screens |
 | `src/components/*` | Shared presentational components |
-| `src/stores/*` | Zustand state (incl. `localGameStore` for pass-and-play, `statsStore` for local match history) |
+| `src/stores/*` | Zustand state (incl. `localGameStore` for pass-and-play, `statsStore` for local match history, `profileStore` for the device-wide display name) |
 | `src/types/index.ts` | Shared TypeScript types |
 | `src/engine/*` | Pure game rules engine (types, board, setup, moves, rules) |
 | `docs/RULES.md` | Game rules source of truth |
+| `docs/ACCOUNTS.md` | Identity/accounts plan (seat ids vs display names, invite codes, Phase C) |
 | `src/services/websocket.ts` | WebSocket client singleton |
+| `src/services/identity.ts` | Persistent device identity (Web Locks; per-tab fallback) |
 | `src/contexts/WebSocketProvider.tsx` | React integration for WebSocket |
 | `server/index.ts` | Multiplayer WebSocket server (`npm run server`), driven by `src/engine/` |
 | `src/utils/*` | Pure helpers (IDs, formatting, etc.) |

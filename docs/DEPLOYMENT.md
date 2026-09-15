@@ -2,6 +2,8 @@
 
 **Status:** Implemented through M5 (scripted smoke). M1–M4 complete and pushed; M5's automated checks pass; remaining M5 items are interactive human checks; M6 optional. This document is the handoff spec for the deployment phase; any agent should be able to resume from the current milestone without prior chat context.
 
+> **Next phase:** identity & accounts (named guests, invite links, persistent device identity; later Supabase accounts). See [`docs/ACCOUNTS.md`](ACCOUNTS.md).
+
 ## Handoff Summary (read first)
 
 - **Live frontend:** `https://outwit-one.vercel.app` (Vercel project `outwit`, CLI-linked at `.vercel/project.json`).
@@ -213,10 +215,11 @@ M1 implementation notes: `src/services/websocket.ts` normalizes `VITE_WS_URL` (s
 
 ### M6 — Optional Polish
 
-- [ ] Auto-deploy: install the Render GitHub App for `DanielH987/Outwit` and enable auto-deploy on the service, so pushes to `main` redeploy the server. (Vercel can also be connected to the repo for client auto-deploys.)
+- [x] Auto-deploy: Render auto-deploys on every push to `main` (enabled by default on the service). Vercel remains CLI-driven (`npx vercel@latest --prod --yes`) unless the repo is connected to the Vercel project.
 - [ ] Custom domain (if desired), configured in Vercel and optionally Render.
-- [ ] Keep-alive ping or paid instance to reduce Render free-tier cold starts.
-- [ ] Future: persistent rooms/history (Redis/Postgres), server auth, clock/time-control messages.
+- [ ] Keep-alive ping or paid instance to reduce Render free-tier cold starts (a paid instance would also stop rooms being dropped when the service sleeps).
+- [ ] Room persistence (e.g. Upstash Redis) — separate effort; see `docs/ACCOUNTS.md` Phase C notes.
+- [ ] Clock/time-control messages once a time-control rule exists.
 
 ## CLI Reference
 
@@ -239,6 +242,7 @@ Useful commands:
 | Render list services | `render services --output json` |
 | Render deploy | `render deploys create <service-id> --wait` |
 | Render logs | `render logs -r <service-id> --limit 100` |
+| Supabase projects | `supabase projects list` (CLI v2.117.0 installed and authenticated; used only in Phase C) |
 | Render restart | `render restart <service-id>` |
 
 ## Risks and Troubleshooting
