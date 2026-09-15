@@ -25,4 +25,18 @@
   .board-coord {
     font-size: clamp(0.55rem, 2.4cqw, 1rem);
   }
+
+  /* Chips slide between tiles (chess.com-style). Duration is set inline per
+     move (distance-aware); this supplies the easing and animated properties. */
+  .chip-slide {
+    transition-property: left, top;
+    transition-timing-function: cubic-bezier(0.22, 0.61, 0.36, 1); /* ease-out */
+    transition-duration: 0ms;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .chip-slide {
+      transition-duration: 0ms !important;
+    }
+  }
 }

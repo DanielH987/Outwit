@@ -1,9 +1,9 @@
-// Board rendering details: clean chips (no numbers), distinct power chip, and
-// chess.com-style last-move square highlighting.
+// Board rendering details: clean chips (no numbers), distinct power chip,
+// chess.com-style last-move square highlighting, and the sliding chip layer.
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { Board } from '../components/Board';
-import { createInitialState } from '../engine';
+import { Board, SLIDE_BASE_MS, SLIDE_MAX_MS, SLIDE_PER_TILE_MS } from '../components/Board';
+import { applyMove, createInitialState } from '../engine';
 
 function renderBoard(overrides: Partial<Parameters<typeof Board>[0]> = {}) {
   return render(
@@ -69,5 +69,58 @@ describe('Board chips', () => {
     expect(screen.getByRole('gridcell', { name: 'tile a1' })).toBeInTheDocument();
     expect(screen.getByRole('gridcell', { name: 'tile i1' })).toBeInTheDocument();
     expect(screen.getByRole('gridcell', { name: 'tile i10' })).toBeInTheDocument();
+  });
+});
+
+describe('board slide animation', () => {
+  it('renders chips in a dedicated layer keyed by id (so they can animate)', () => {
+    renderBoard();
+    const layer = screen.getByTestId('chip-layer');
+    expect(layer).toBeInTheDocument();
+    // All 18 chips live in the layer as persistent, id-keyed nodes.
+    expect(layer.querySelectorAll('[data-testid^="chip-"]')).toHaveLength(18);
+  });
+
+  it('positions a chip by tile percentages, not by nesting it in a tile', () => {
+    renderBoard();
+    const chip = screen.getByTestId('chip-black-1'); // starts at (0,0) → a10
+    expect(chip).toHaveAttribute('data-position', 'a10');
+    expect(chip.style.left).toBe('0%');
+    expect(chip.style.top).toBe('0%');
+    expect(chip.style.width).toBe(`${100 / 9}%`);
+    expect(chip.style.height).toBe(`${100 / 10}%`);
+  });
+
+  it('sets a distance-aware transition duration only on the move that changed', () => {
+    const initial = createInitialState();
+    const moved = applyMove(initial, { chipId: 'white-1', to: { x: 0, y: 6 } });
+    const { rerender } = renderBoard({ state: initial });
+    expect(screen.getByTestId('chip-white-1').style.transitionDuration).toBe('');
+
+    rerender(
+      <Board state={moved} selectedChipId={null} legalMoves={[]} onTileClick={vi.fn()} />
+    );
+    const chip = screen.getByTestId('chip-white-1');
+    expect(chip).toHaveAttribute('data-position', 'a4');
+    // 5-tile slide: 160 + 18*5 = 250ms, under the 320ms cap.
+    expect(chip.style.transitionDuration).toBe(`${SLIDE_BASE_MS + SLIDE_PER_TILE_MS * 5}ms`);
+
+    // A later rerender with no movement must not re-trigger the transition.
+    rerender(
+      <Board state={moved} selectedChipId="white-1" legalMoves={[]} onTileClick={vi.fn()} />
+    );
+    expect(screen.getByTestId('chip-white-1').style.transitionDuration).toBe('');
+  });
+
+  it('caps the duration for very long slides', () => {
+    const initial = createInitialState();
+    // White moves first, then black-9 slides up 5 tiles.
+    const afterWhite = applyMove(initial, { chipId: 'white-1', to: { x: 0, y: 6 } });
+    const afterBlack = applyMove(afterWhite, { chipId: 'black-9', to: { x: 8, y: 3 } });
+    const { rerender } = renderBoard({ state: afterWhite });
+    rerender(<Board state={afterBlack} selectedChipId={null} legalMoves={[]} onTileClick={vi.fn()} />);
+    const duration = parseInt(screen.getByTestId('chip-black-9').style.transitionDuration, 10);
+    expect(duration).toBeGreaterThan(0);
+    expect(duration).toBeLessThanOrEqual(SLIDE_MAX_MS);
   });
 });
