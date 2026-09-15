@@ -84,6 +84,19 @@ interface Room {
 const rooms = new Map<string, Room>();
 let nextUserSuffix = 1;
 
+/**
+ * Sockets that have proven liveness in the current heartbeat round. Populated
+ * on connect and refreshed by each `pong` (and by any other inbound message, so
+ * an actively-playing client is never considered dead). The heartbeat loop in
+ * `startServer` clears entries each round and terminates anything left behind.
+ */
+const liveSockets = new WeakSet<WebSocket>();
+
+/** Record that a socket is alive (connect, any inbound message, or `pong`). */
+export function markAlive(ws: WebSocket) {
+  liveSockets.add(ws);
+}
+
 const PORT = Number(process.env.PORT ?? process.env.OUTWIT_PORT ?? 3001);
 
 /** Supabase JWT verification config; null when not configured (guest-only). */
@@ -412,6 +425,12 @@ function isCurrentBinding(room: Room, client: ClientInfo): boolean {
 async function handleMessage(client: ClientInfo, message: ClientMessage) {
   const room = client.roomId ? rooms.get(client.roomId) : undefined;
 
+  // App-level heartbeat reply: mark the socket alive and return without doing
+  // anything else (it is not a room action).
+  if (message.type === 'pong') {
+    markAlive(client.ws);
+    return;
+  }
   // A socket that has been replaced by a newer reconnect is no longer bound to
   // the room and must not act: its view is frozen, so letting it move would
   // apply phantom moves it cannot see. join-room/leave-room still pass so the
@@ -500,13 +519,16 @@ export interface RunningServer {
 }
 
 /**
- * WebSocket heartbeat interval. Render's proxy can hold a dead TCP connection
- * open (measured ~11s locally against the proxy), so `close` never fires
- * promptly and a disconnected seat looks connected until the OS times the
- * socket out. A socket that misses one ping round is terminated, so a real
- * disconnect is detected in 1-2 intervals (~3-6s) — keeping the dead-air wait
- * before the forfeit countdown short. Pings are 2-byte control frames, so the
- * cost is negligible.
+ * Application-level heartbeat interval.
+ *
+ * Why not WebSocket ping/pong? Render's proxy terminates the WS control frames:
+ * measured in production, server `ws.ping()` calls never reach the browser while
+ * the proxy answers pongs on the client's behalf. So WS-level liveness both fails
+ * to detect dead clients *and* can kill healthy ones. Ordinary JSON messages do
+ * traverse the proxy (game traffic works), so liveness is an app-level `ping`
+ * that clients answer with `pong`. A socket that misses a round is terminated,
+ * so a vanished client is detected in 1-2 intervals (~3-6s), comfortably faster
+ * than the proxy's own ~11s TCP timeout.
  */
 const HEARTBEAT_INTERVAL_MS = 3_000;
 
@@ -538,20 +560,18 @@ export function startServer(port = PORT): RunningServer {
 
   const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
 
-  // Liveness: mark each connection alive on connect and on every pong, then
-  // ping all sockets each round. A socket that failed to pong since the last
-  // round is dead — terminate it so `close` runs and the room sees the
-  // disconnect immediately.
-  const alive = new WeakSet<WebSocket>();
+  // Liveness: send an app-level `ping` JSON message each round; clients reply
+  // with `pong` (see handleMessage). A socket that missed the previous round is
+  // dead — terminate it so `close` runs and the room sees the disconnect.
   const heartbeat = setInterval(() => {
     for (const ws of wss.clients) {
-      if (!alive.has(ws)) {
+      if (!liveSockets.has(ws)) {
         ws.terminate();
         continue;
       }
-      alive.delete(ws);
+      liveSockets.delete(ws);
       try {
-        ws.ping();
+        ws.send(JSON.stringify({ type: 'ping', payload: {} } satisfies ServerMessage));
       } catch {
         ws.terminate();
       }
@@ -563,12 +583,14 @@ export function startServer(port = PORT): RunningServer {
     const userId = `user-${nextUserSuffix++}`;
     const client: ClientInfo = { ws, userId, username: null, roomId: null };
 
-    alive.add(ws);
-    ws.on('pong', () => alive.add(ws));
+    markAlive(ws);
 
     send(ws, { type: 'connected', payload: { userId } });
 
     ws.on('message', (raw) => {
+      // Any inbound traffic proves liveness, so an active client is never
+      // considered dead by the heartbeat.
+      markAlive(ws);
       let message: ClientMessage;
       try {
         message = JSON.parse(raw.toString());

@@ -53,6 +53,12 @@ export class WebSocketService {
       } catch {
         return;
       }
+      // App-level heartbeat: answer immediately so the server knows we're alive.
+      // (WS-level ping/pong control frames do not survive Render's proxy.)
+      if (message.type === 'ping') {
+        this.rawSend({ type: 'pong', payload: {} });
+        return;
+      }
       this.handlers.forEach((handler) => handler(message));
     };
 
