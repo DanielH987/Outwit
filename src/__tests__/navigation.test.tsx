@@ -54,4 +54,17 @@ describe('app navigation', () => {
     expect(screen.getByRole('heading', { name: '404' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Outwit home' })).toBeInTheDocument();
   });
+
+  it('links the privacy policy and terms from every page', () => {
+    renderAt('/');
+    expect(screen.getByRole('link', { name: 'Privacy Policy' })).toHaveAttribute('href', '/privacy');
+    expect(screen.getByRole('link', { name: 'Terms of Service' })).toHaveAttribute('href', '/terms');
+  });
+
+  it('renders the privacy and terms pages inside the shell', () => {
+    renderAt('/privacy');
+    expect(screen.getByRole('heading', { name: 'Privacy Policy' })).toBeInTheDocument();
+    renderAt('/terms');
+    expect(screen.getByRole('heading', { name: 'Terms of Service' })).toBeInTheDocument();
+  });
 });

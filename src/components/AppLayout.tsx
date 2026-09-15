@@ -60,6 +60,24 @@ const tabLink = ({ isActive }: { isActive: boolean }) =>
     isActive ? 'text-accent' : 'text-taupe hover:text-parchment',
   ].join(' ');
 
+// Legal links live on every page: Google's branding verification requires the
+// homepage to link to the privacy policy and terms.
+function Footer() {
+  return (
+    <footer className="mt-auto border-t border-wood-edge/40 px-4 py-4">
+      <div className="mx-auto flex max-w-4xl flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs text-taupe">
+        <span>Outwit</span>
+        <NavLink to="/privacy" className="hover:text-accent">
+          Privacy Policy
+        </NavLink>
+        <NavLink to="/terms" className="hover:text-accent">
+          Terms of Service
+        </NavLink>
+      </div>
+    </footer>
+  );
+}
+
 export function AppLayout() {
   return (
     <div className="flex min-h-dvh bg-primary text-parchment">
@@ -88,6 +106,7 @@ export function AppLayout() {
           needs bottom padding; on md+ the rail handles navigation. */}
       <div className="flex min-w-0 flex-1 flex-col pb-[calc(4rem+env(safe-area-inset-bottom))] pt-[env(safe-area-inset-top)] md:pb-0 md:pt-0">
         <Outlet />
+        <Footer />
       </div>
 
       <nav
