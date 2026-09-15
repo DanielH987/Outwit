@@ -2,6 +2,7 @@
 // draw offer flow, resign, reset.
 
 import type { GameResult, PlayerId } from '@/engine';
+import { resultDescription } from '@/utils/gameResultText';
 
 interface GameControlsProps {
   result: GameResult;
@@ -16,26 +17,6 @@ interface GameControlsProps {
 
 const PLAYER_LABEL: Record<PlayerId, string> = { white: 'White', black: 'Black' };
 
-function resultText(result: GameResult): string | null {
-  if (result.status !== 'finished') return null;
-  switch (result.reason) {
-    case 'base-filled':
-      return `${PLAYER_LABEL[result.winner!]} wins! Base filled.`;
-    case 'resignation':
-      return `${PLAYER_LABEL[result.winner!]} wins by resignation.`;
-    case 'forfeit':
-      return `${PLAYER_LABEL[result.winner!]} wins — opponent disconnected.`;
-    case 'stalemate':
-      return 'Draw — stalemate.';
-    case 'repetition':
-      return 'Draw — threefold repetition.';
-    case 'agreement':
-      return 'Draw by mutual agreement.';
-    default:
-      return 'Game over.';
-  }
-}
-
 export function GameControls({
   result,
   sideToMove,
@@ -47,7 +28,7 @@ export function GameControls({
   onReset,
 }: GameControlsProps) {
   const finished = result.status === 'finished';
-  const message = resultText(result);
+  const message = resultDescription(result);
 
   return (
     <div className="flex w-full max-w-lg flex-col gap-3 rounded-xl bg-surface p-4 text-parchment shadow-lg shadow-black/30">

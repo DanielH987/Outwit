@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Board } from '@/components/Board';
 import { ChatPanel } from '@/components/ChatPanel';
 import { GameClocks } from '@/components/GameClocks';
 import { GameControls } from '@/components/GameControls';
+import { GameOverDialog } from '@/components/GameOverDialog';
 import { MoveHistoryPanel } from '@/components/MoveHistoryPanel';
 import { WaitingForOpponent } from '@/components/WaitingForOpponent';
 import { chipAt, getLegalMoves, samePosition } from '@/engine';
@@ -68,8 +69,25 @@ function LocalGameView() {
 
   const { highlight: lastMove, onHighlight } = useBoardHighlight(moveHistory);
 
+  // Show the end dialog once per finished game, until dismissed. Resetting the
+  // game (or starting another) re-arms it for the next finish.
+  const [dismissedResultKey, setDismissedResultKey] = useState<string | null>(null);
+  const resultKey =
+    result.status === 'finished'
+      ? `${result.reason}:${result.winner ?? 'draw'}:${moveHistory.length}`
+      : null;
+  const showGameOver = resultKey !== null && resultKey !== dismissedResultKey;
+
   return (
     <main className="flex flex-1 flex-col lg:h-dvh lg:flex-row lg:items-stretch lg:overflow-hidden">
+      {showGameOver && (
+        <GameOverDialog
+          result={result}
+          primaryLabel="Play again"
+          onPrimary={reset}
+          onDismiss={() => setDismissedResultKey(resultKey)}
+        />
+      )}
       {/* Board column. Desktop: board sized from viewport height (9:10 → ×0.9)
           with a hair of margin, so it nearly touches top and bottom. */}
       <div className="flex flex-1 items-start justify-center px-0 py-2 lg:items-center lg:px-3">
@@ -128,6 +146,8 @@ function OnlineGameView({ roomId }: { roomId: string }) {
   const setDisplayName = useProfileStore((s) => s.setDisplayName);
   const [nameDraft, setNameDraft] = useState('');
   const [nameError, setNameError] = useState<string | null>(null);
+  const [dismissedResultKey, setDismissedResultKey] = useState<string | null>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     joinRoom(roomId);
@@ -180,6 +200,15 @@ function OnlineGameView({ roomId }: { roomId: string }) {
 
   const { highlight: lastMove, onHighlight } = useBoardHighlight(gameState?.moveHistory ?? []);
 
+  const opponent = gameState?.players.find((p) => p.userId !== userId) ?? null;
+
+  // One dialog per finished game; dismissing keeps the board readable.
+  const finishedResult = gameState?.result.status === 'finished' ? gameState.result : null;
+  const resultKey = finishedResult
+    ? `${finishedResult.reason}:${finishedResult.winner ?? 'draw'}:${gameState?.moveHistory.length ?? 0}`
+    : null;
+  const showGameOver = resultKey !== null && resultKey !== dismissedResultKey;
+
   if (!gameState) {
     return (
       <main className="flex flex-1 items-center justify-center text-taupe">
@@ -190,6 +219,16 @@ function OnlineGameView({ roomId }: { roomId: string }) {
 
   return (
     <main className="flex flex-1 flex-col lg:h-dvh lg:flex-row lg:items-stretch lg:overflow-hidden">
+      {showGameOver && (
+        <GameOverDialog
+          result={gameState.result}
+          perspective={mySide}
+          primaryLabel="Back to lobby"
+          onPrimary={() => navigate('/lobby')}
+          onDismiss={() => setDismissedResultKey(resultKey)}
+          detail={opponent ? `vs ${opponent.username ?? opponent.userId}` : null}
+        />
+      )}
       <div className="flex flex-1 items-start justify-center px-0 py-2 lg:items-center lg:px-3">
         <div className="w-full max-w-[min(100%,calc((100dvh-16rem)*0.9))] lg:max-w-[min(100%,calc((100dvh-1.5rem)*0.9))]">
           <Board

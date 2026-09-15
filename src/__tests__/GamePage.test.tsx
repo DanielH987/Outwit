@@ -152,3 +152,54 @@ describe('GamePage local play', () => {
     expect(screen.getByTestId('clock-black')).toBeInTheDocument();
   });
 });
+
+describe('GamePage end-of-game dialog', () => {
+  beforeEach(() => {
+    resetStore();
+  });
+
+  it('pops a modal when the game ends', async () => {
+    const user = userEvent.setup();
+    renderGamePage();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /Black resigns/i }));
+
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(screen.getByTestId('game-over-headline')).toHaveTextContent('White won');
+    expect(screen.getByTestId('game-over-reason')).toHaveTextContent('By resignation');
+  });
+
+  it('dismisses to view the final board, without losing the banner', async () => {
+    const user = userEvent.setup();
+    renderGamePage();
+    await user.click(screen.getByRole('button', { name: /Black resigns/i }));
+
+    await user.click(screen.getByRole('button', { name: /View board/i }));
+
+    expect(screen.queryByTestId('game-over-dialog')).not.toBeInTheDocument();
+    // Board still visible and the status banner still explains the result.
+    expect(screen.getByRole('grid', { name: /outwit board/i })).toBeInTheDocument();
+    expect(screen.getByText(/White wins by resignation/i)).toBeInTheDocument();
+  });
+
+  it('starts a fresh game from the dialog and re-arms it for the next finish', async () => {
+    const user = userEvent.setup();
+    renderGamePage();
+    await user.click(screen.getByRole('button', { name: /Black resigns/i }));
+
+    await user.click(screen.getByRole('button', { name: /Play again/i }));
+
+    expect(screen.queryByTestId('game-over-dialog')).not.toBeInTheDocument();
+    expect(useLocalGameStore.getState().result.status).toBe('in-progress');
+    expect(useLocalGameStore.getState().moveHistory).toHaveLength(0);
+  });
+
+  it('closes on Escape', async () => {
+    const user = userEvent.setup();
+    renderGamePage();
+    await user.click(screen.getByRole('button', { name: /Black resigns/i }));
+    await user.keyboard('{Escape}');
+    expect(screen.queryByTestId('game-over-dialog')).not.toBeInTheDocument();
+  });
+});
