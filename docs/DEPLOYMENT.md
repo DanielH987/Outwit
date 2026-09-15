@@ -84,49 +84,62 @@ Render's free Hobby workspace includes **5 GB of outbound bandwidth per month** 
 
 | Piece | Trigger | What happens | Cost/limit |
 | --- | --- | --- | --- |
-| **Frontend (Vercel)** | `npx vercel@latest --prod --yes` (manual CLI) | Vercel runs `npm run build` on its own builders, uploads `dist/`, aliases `outwit-one.vercel.app`. | Hobby: 100 deploys/day, 1 concurrent build, 100 MB CLI upload cap. Deploy bandwidth is Vercel's, not Render's. |
-| **Backend (Render)** | **Auto-deploy on every push to `main`** (GitHub connected) | Render clones the repo, runs `npm ci && npm run build:server`, then `npm run start:server`. | No deploy-count limit; outbound bytes only. ~1.5 min per build. |
+| **Frontend (Vercel)** | **Git push to `main`** (auto-deploy, connected 2026-09-16) — or manual `npx vercel@latest --prod --yes` | Vercel builds `npm run build` itself, uploads `dist/`, aliases `outwit-one.vercel.app`. PRs get preview URLs. | Hobby: 100 deploys/day, 1 concurrent build, 100 MB CLI upload cap. Deploy bandwidth is Vercel's, not Render's. |
+| **Backend (Render)** | Git push to `main`, **filtered** to server-relevant paths (see below) | Render clones the repo, runs `npm ci && npm run build:server`, then `npm run start:server`. | No deploy-count limit; outbound bytes only. ~1.5 min per build. |
 | **Database (Supabase)** | `supabase db push` / `config push` (manual, rare) | Applies migrations / auth config to the hosted project. | Free tier. |
 
-Both deploy paths are independent — a frontend deploy does **not** trigger a Render build, and a Render build does not touch Vercel. That is already the "deploy front and back separately" model; the trigger is just different (CLI vs git push).
+Both deploy paths are independent — a frontend deploy does **not** trigger a Render build, and a Render build does not touch Vercel. A single `git push` fans out to both, each with its own filter.
 
-### Pain points
+### Pain points (resolved 2026-09-16)
 
-1. **Render rebuilds on every push**, including docs-only commits. ~1.5 min and a container spin-up each time, with no code that the server uses.
-2. **Vercel is CLI-only** — no preview deployments, no automatic deploy on push, and the local machine is required to ship frontend changes.
-3. **Nothing checks the other side.** A frontend change that requires a server protocol change can ship before the server does (or vice versa), briefly breaking online play.
+1. ~~**Render rebuilt on every push**, including docs-only commits.~~ Fixed with build filters; verified a docs-only push produced no Render build.
+2. ~~**Vercel was CLI-only** — no preview deployments, no automatic deploy on push.~~ Fixed: the GitHub repo link was `sourceless`; re-linking enabled push-to-deploy and PR previews. Verified with a git-sourced production deployment.
+3. **Nothing checks the other side.** A frontend change that requires a server protocol change can ship before the server does (or vice versa), briefly breaking online play. Mitigation is ordering discipline (see #4 below), not tooling.
 
-### Recommended improvements (not yet implemented)
+### Recommended improvements (implemented 2026-09-16)
 
-1. **Render build filters** — skip backend builds when only frontend/docs changed:
+1. **Render build filters — DONE.** The service now has:
+   - `paths`: `server/**`, `src/engine/**`, `src/types/**`, `package.json`, `package-lock.json`
+   - `ignoredPaths`: `docs/**`, `**/*.md`, `src/components/**`, `src/pages/**`, `src/stores/**`, `src/hooks/**`, `src/contexts/**`, `src/services/**`, `src/utils/**`, `public/**`
+
+   So a frontend- or docs-only push no longer rebuilds the server. Set via the Render API (a top-level `buildFilter` field — **not** nested under `serviceDetails`, which fails silently):
    ```bash
-   render services update srv-dajpo9m7bikc73d1ge8g \
-     --build-filter-path server --build-filter-path src/engine \
-     --build-filter-path src/types --build-filter-path package.json \
-     --build-filter-path package-lock.json
+   curl -X PATCH https://api.render.com/v1/services/<id> \
+     -H "Authorization: Bearer $RENDER_API_KEY" -H 'Content-Type: application/json' \
+     -d '{"buildFilter":{"paths":["server/**","src/engine/**","src/types/**","package.json","package-lock.json"],"ignoredPaths":["docs/**","**/*.md","src/components/**","src/pages/**","src/stores/**","src/hooks/**","src/contexts/**","src/services/**","src/utils/**","public/**"]}}'
    ```
-   Render then builds only when one of those paths changes. (`--build-filter-ignored-path` can also exclude `docs/`.)
-2. **Connect Vercel to GitHub** — `npx vercel@latest git connect` gives push-to-deploy plus PR preview URLs, removing the manual CLI step and the "did I remember to deploy the frontend?" failure mode. Preview URLs are free on Hobby.
+   **Verified:** a docs-only push produced no Render deploy (count stayed 20, latest commit unchanged).
+
+2. **Vercel ↔ GitHub — DONE.** Push-to-deploy now works: a push to `main` creates a production deployment (`source: git` in the deployments API). The original link was **`sourceless: true`** (broken), which is why CLI deploys were the only path. Fixed by disconnecting and re-linking via the API:
+   ```bash
+   curl -X DELETE 'https://api.vercel.com/v9/projects/<projectId>/link?teamId=<teamId>' -H "Authorization: Bearer $VERCEL_TOKEN"
+   curl -X POST   'https://api.vercel.com/v9/projects/<projectId>/link?teamId=<teamId>' \
+     -H "Authorization: Bearer $VERCEL_TOKEN" -H 'Content-Type: application/json' \
+     -d '{"type":"github","repo":"DanielH987/Outwit","productionBranch":"main"}'
+   ```
+   **Verified:** a push produced a git-sourced production deployment (commit `2ecee9e`, `source: git`, READY). PR previews are enabled (`gitComments.onPullRequest: true`).
+
 3. **Batch deploys** — not a bandwidth issue (deploys cost 0 outbound) but a *build-minutes* and *focus* one: commit meaningful units, not every doc tweak.
 4. **Order protocol changes** — when a change touches `src/types/index.ts` (shared wire types), deploy the **server first** (backward-compatible: old clients ignore new fields), then the client. Never remove a field in the same deploy that stops sending it.
-5. **Optional: split CI gates** — a GitHub Action running `npm test && npm run lint && npm run build` on PRs so failures are caught before either host builds. Currently these run locally only.
+5. **Optional: CI gates** — a GitHub Action running `npm test && npm run lint && npm run build` on PRs, since that's only checked locally now.
 
-### Suggested day-to-day workflow
+### Day-to-day workflow (after these changes)
 
 ```bash
 # 1. Work + verify locally
 npm test && npm run lint && npm run build
 
-# 2. Commit and push (Render auto-builds if server/engine/types/package changed)
+# 2. Commit and push — this deploys BOTH sides automatically:
+#    - Vercel builds the client (every push)
+#    - Render rebuilds the server only if server/engine/types/package changed
 git add . && git commit -m "..." && git push
 
-# 3. Ship the client when the frontend changed
-npx vercel@latest --prod --yes
-
-# 4. Verify
+# 3. Verify
 curl -s -o /dev/null -w "%{http_code}\n" https://outwit-one.vercel.app/
 curl -s https://outwit-server.onrender.com/stats
 ```
+
+Manual CLI deploys (`npx vercel@latest --prod --yes`) still work and are useful when you want to ship the client without a commit.
 
 ## Verified Current State (as of 2026-09-14)
 
@@ -338,5 +351,3 @@ Useful commands:
 - Room persistence/history (database).
 - Time controls/clocks (no time-control rule exists yet).
 - AI opponent.
-
-<!-- CI/CD verification 2026-09-16 -->
