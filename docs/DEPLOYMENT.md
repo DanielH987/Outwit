@@ -57,6 +57,10 @@ Browser ── HTTPS ──▶ Vercel (static Vite build, SPA rewrites)
 | Variable | Where | Value | Notes |
 | --- | --- | --- | --- |
 | `VITE_WS_URL` | Vercel, production | `wss://outwit-server.onrender.com` | Baked in at build time; **no** trailing `/ws` (client appends it). Requires redeploy to take effect. |
+| `VITE_SUPABASE_URL` | Vercel, production | `https://hqgamvpcowjjgxkchtzu.supabase.co` | Client auth + match history (Phase C). Baked in at build time. |
+| `VITE_SUPABASE_ANON_KEY` | Vercel, production | anon JWT | Public by design (ships in the bundle). Never use the service-role key here. |
+| `SUPABASE_URL` | Render | `https://hqgamvpcowjjgxkchtzu.supabase.co` | Enables JWT verification + match recording; optional (server runs guest-only without it). |
+| `SUPABASE_SERVICE_ROLE_KEY` | Render | service-role JWT | **Secret.** Server-only; grants write access to `matches`. Set via the Render API — `render services update` cannot set env vars. |
 | `OUTWIT_FORFEIT_SECONDS` | Render | `60` | Disconnect-forfeit grace period. Defaults to 60 if unset. |
 | `OUTWIT_ROOM_TTL_SECONDS` | Render (optional) | `1800` | How long an abandoned room (no connected clients) is kept for reconnects before GC. Defaults to 1800 (30 min). |
 | `OUTWIT_PORT` | local only | e.g. `3001` | Optional local port override. On Render, the server must use the platform-provided `PORT`. |

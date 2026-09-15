@@ -236,7 +236,13 @@ function OnlineGameView({ roomId }: { roomId: string }) {
               onClick={() => {
                 const ok = setDisplayName(nameDraft);
                 setNameError(ok ? null : 'Name must be 2–20 characters.');
-                if (ok) setNameDraft('');
+                if (ok) {
+                  setNameDraft('');
+                  // Re-send the join so the server updates this seat's name.
+                  // Safe while waiting; during a live game the next join also
+                  // carries it (the server keeps seat bindings stable).
+                  joinRoom(roomId);
+                }
               }}
               className="shrink-0 rounded-lg border border-wood-edge px-3 py-2 text-sm font-semibold transition hover:border-accent hover:text-accent"
             >

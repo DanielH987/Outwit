@@ -13,6 +13,8 @@
 
 import { WebSocketServer, WebSocket } from 'ws';
 import { createServer, type Server as HttpServer } from 'node:http';
+import { verifySupabaseToken, type SupabaseJwtConfig } from './auth';
+import { matchRecorderConfig, recordMatch } from './matches';
 import {
   applyMove,
   createInitialState,
@@ -73,12 +75,21 @@ interface Room {
   spectators: Map<string, ClientInfo>;
   forfeitTimer: NodeJS.Timeout | null;
   lastActivityAt: number;
+  /** True once this room's finished game has been persisted (idempotency). */
+  recorded: boolean;
 }
 
 const rooms = new Map<string, Room>();
 let nextUserSuffix = 1;
 
 const PORT = Number(process.env.PORT ?? process.env.OUTWIT_PORT ?? 3001);
+
+/** Supabase JWT verification config; null when not configured (guest-only). */
+function supabaseAuthConfig(): SupabaseJwtConfig | null {
+  const url = process.env.SUPABASE_URL;
+  if (!url) return null;
+  return { url, jwtSecret: process.env.SUPABASE_JWT_SECRET };
+}
 
 /** Seconds after which a disconnected seat forfeits. Configurable via env. */
 function forfeitSeconds(): number {
@@ -160,6 +171,32 @@ function broadcastState(room: Room) {
   clearForfeitTimer(room);
   broadcastRoom(room, { type: 'game-state', payload: roomStatePayload(room) });
   maybeStartForfeitTimer(room);
+  maybeRecordFinishedMatch(room);
+}
+
+/** Persist the finished game once per room (best-effort; never blocks gameplay). */
+function maybeRecordFinishedMatch(room: Room) {
+  const s = room.state;
+  if (room.recorded) return;
+  if (s.result.status !== 'finished' || s.result.reason === null) return;
+  const white = s.players.find((p) => p.side === 'white');
+  const black = s.players.find((p) => p.side === 'black');
+  if (!white || !black) return;
+
+  room.recorded = true;
+  void recordMatch(
+    {
+      roomId: room.id,
+      whiteId: white.userId,
+      blackId: black.userId,
+      whiteName: white.username,
+      blackName: black.username,
+      winner: s.result.winner,
+      reason: s.result.reason,
+      moveCount: s.moveHistory.length,
+    },
+    matchRecorderConfig()
+  );
 }
 
 function broadcastRoomUpdate(room: Room) {
@@ -206,10 +243,11 @@ function createRoom(roomId: string): Room {
     spectators: new Map(),
     forfeitTimer: null,
     lastActivityAt: Date.now(),
+    recorded: false,
   };
 }
 
-function joinRoom(client: ClientInfo, payload: JoinRoomPayload) {
+function joinRoom(client: ClientInfo, payload: JoinRoomPayload, verifiedSub?: string | null) {
   const roomId = payload.roomId;
   client.roomId = roomId;
   if (payload.username !== undefined && payload.username !== null) client.username = payload.username;
@@ -220,10 +258,10 @@ function joinRoom(client: ClientInfo, payload: JoinRoomPayload) {
     rooms.set(roomId, room);
   }
 
-  // Seats are keyed by the client-supplied userId from the join payload (and
-  // every message includes the same userId). A reconnecting client that
-  // keeps its userId re-binds to its seat.
-  const seatId = payload.userId ?? `anon-${nextUserSuffix++}`;
+  // Seat priority: a verified Supabase `sub` (signed-in player) wins over the
+  // client-supplied id; a mismatched claim is rejected by the caller. Guests
+  // fall back to their client-supplied id, or an anonymous seat.
+  const seatId = verifiedSub ?? payload.userId ?? `anon-${nextUserSuffix++}`;
   const existing = room.state.players.find((p) => p.userId === seatId);
   if (existing) {
     room.players.set(seatId, client);
@@ -345,7 +383,7 @@ function isCurrentBinding(room: Room, client: ClientInfo): boolean {
   return room.players.get(client.userId) === client || room.spectators.get(client.userId) === client;
 }
 
-function handleMessage(client: ClientInfo, message: ClientMessage) {
+async function handleMessage(client: ClientInfo, message: ClientMessage) {
   const room = client.roomId ? rooms.get(client.roomId) : undefined;
 
   // A socket that has been replaced by a newer reconnect is no longer bound to
@@ -358,9 +396,27 @@ function handleMessage(client: ClientInfo, message: ClientMessage) {
   }
 
   switch (message.type) {
-    case 'join-room':
-      joinRoom(client, message.payload as JoinRoomPayload);
+    case 'join-room': {
+      const payload = message.payload as JoinRoomPayload;
+      let verifiedSub: string | null = null;
+
+      if (payload.token) {
+        const verified = await verifySupabaseToken(payload.token, supabaseAuthConfig());
+        if (!verified) {
+          error(client, 'Sign-in expired or invalid. Please sign in again.');
+          return;
+        }
+        // Impersonation guard: a signed-in client must claim its own account id.
+        if (payload.userId && payload.userId !== verified.sub) {
+          error(client, 'Identity mismatch.');
+          return;
+        }
+        verifiedSub = verified.sub;
+      }
+
+      joinRoom(client, payload, verifiedSub);
       return;
+    }
     case 'leave-room':
       if (room) removeClientFromRoom(room, client);
       client.roomId = null;
@@ -459,7 +515,10 @@ export function startServer(port = PORT): RunningServer {
         error(client, 'Malformed message.');
         return;
       }
-      handleMessage(client, message);
+      void handleMessage(client, message).catch((err) => {
+        console.error('[outwit-server] message handler error:', err);
+        error(client, 'Something went wrong handling that message.');
+      });
     });
 
     ws.on('close', () => {

@@ -27,6 +27,15 @@ export default tseslint.config(
     },
   },
   {
+    // Context/providers intentionally co-locate a component and its hook
+    // (WebSocketProvider/useWebSocket, IdentityProvider/useIdentity,
+    // AccountProvider/useAccount). Fast refresh warns on this by design.
+    files: ['src/contexts/**/*.tsx'],
+    rules: {
+      'react-refresh/only-export-components': 'off',
+    },
+  },
+  {
     // Test files and the standalone server use targeted casts for payload
     // shapes; keep `any` allowed there but warn everywhere else.
     files: ['src/__tests__/**/*.ts', 'src/__tests__/**/*.tsx', 'server/**/*.ts'],

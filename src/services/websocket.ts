@@ -83,6 +83,11 @@ export class WebSocketService {
     this.activeRoom = payload;
   }
 
+  /** The room this client is currently bound to (for identity-change rejoins). */
+  getActiveRoom(): JoinRoomPayload | null {
+    return this.activeRoom;
+  }
+
   send(message: ClientMessage) {
     if (this.socket?.readyState === WebSocket.OPEN) {
       this.rawSend(message);

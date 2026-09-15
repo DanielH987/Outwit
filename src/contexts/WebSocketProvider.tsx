@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, type ReactNode } from 'react';
 import { webSocketService } from '@/services/websocket';
-import { useAuthStore, useGameStore } from '@/stores';
+import { effectiveDisplayName, useAuthStore, useGameStore } from '@/stores';
 import type { ServerMessage } from '@/types';
 
 interface WebSocketContextValue {
@@ -53,6 +53,22 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
       webSocketService.disconnect();
     };
   }, [updateGameState, addMessage, setActivePlayers, setLastError, setConnectionId]);
+
+  // Sign-in/out changes the seat id. Re-bind only while waiting for an opponent
+  // (≤1 player) — never yank a seat out of a game in progress; the new identity
+  // then applies to the next room join.
+  useEffect(() => {
+    return useAuthStore.subscribe((state, prev) => {
+      if (state.userId === prev.userId) return;
+      const active = webSocketService.getActiveRoom();
+      if (!active) return;
+      const players = useGameStore.getState().gameState?.players.length ?? 0;
+      if (players >= 2) return;
+      const next = { ...active, userId: state.userId, token: state.accessToken, username: effectiveDisplayName() };
+      webSocketService.setActiveRoom(next);
+      webSocketService.send({ type: 'join-room', payload: next });
+    });
+  }, []);
 
   return (
     <WebSocketContext.Provider value={{ send }}>

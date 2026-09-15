@@ -16,18 +16,19 @@ export function useWebSocketActions() {
   const { send } = useWebSocket();
 
   const getAuth = useCallback(() => {
-    const { userId } = useAuthStore.getState();
+    const { userId, accessToken } = useAuthStore.getState();
     // Display name comes from profileStore (device-wide); falls back to a
-    // generated Guest name when the player never set one.
-    return { userId: userId ?? null, username: effectiveDisplayName() };
+    // generated Guest name when the player never set one. The access token is
+    // present only when signed in; the server verifies it and derives our seat.
+    return { userId: userId ?? null, username: effectiveDisplayName(), token: accessToken };
   }, []);
 
   const joinRoom = useCallback(
     (roomId: string) => {
-      const { userId, username } = getAuth();
+      const { userId, username, token } = getAuth();
       // Remember for auto-rejoin after a reconnect (seat re-bind).
-      webSocketService.setActiveRoom({ roomId, userId, username });
-      send({ type: 'join-room', payload: { roomId, userId, username } });
+      webSocketService.setActiveRoom({ roomId, userId, username, token });
+      send({ type: 'join-room', payload: { roomId, userId, username, token } });
     },
     [send, getAuth]
   );

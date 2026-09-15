@@ -7,7 +7,7 @@ import type { GameRoom } from '@/types';
 
 export function LobbyPage() {
   const [rooms] = useState<GameRoom[]>([]);
-  const [roomName, setRoomName] = useState('quick-match');
+  const [roomName, setRoomName] = useState('');
   const [nameDraft, setNameDraft] = useState('');
   const [nameError, setNameError] = useState<string | null>(null);
   const navigate = useNavigate();
@@ -77,9 +77,8 @@ export function LobbyPage() {
       <section aria-label="Online rooms" className="mb-10 rounded-xl bg-surface p-6 shadow-lg shadow-black/30">
         <h3 className="mb-1 text-xl font-semibold">Play with a friend</h3>
         <p className="mb-4 text-sm text-taupe">
-          Create a game and share the link, or enter a friend's room code. The first player to join is
-          White, the second is Black. Rooms are live; the first connection may take up to a minute
-          while the server wakes.
+          The first player to join is White, the second is Black. Rooms are live; the first connection
+          may take up to a minute while the server wakes.
         </p>
 
         <div className="mb-4 flex max-w-sm flex-col gap-1">
@@ -97,32 +96,49 @@ export function LobbyPage() {
           {nameError && <p role="alert" className="text-xs text-danger">{nameError}</p>}
         </div>
 
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-          <button
-            type="button"
-            onClick={createGame}
-            className="rounded-lg bg-accent px-6 py-3 font-semibold text-primary transition hover:bg-accent-hover"
-          >
-            Create game
-          </button>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-stretch">
+          <div className="flex flex-1 flex-col rounded-xl border border-wood-edge bg-primary/40 p-4">
+            <h4 className="mb-1 font-semibold text-parchment">Create a room</h4>
+            <p className="mb-4 flex-1 text-sm text-taupe">
+              You'll get a link and code to send your friend.
+            </p>
+            <button
+              type="button"
+              onClick={createGame}
+              className="rounded-lg bg-accent px-6 py-3 font-semibold text-primary transition hover:bg-accent-hover"
+            >
+              Create room
+            </button>
+          </div>
+
+          <div className="flex items-center justify-center text-xs font-semibold uppercase tracking-wide text-taupe">
+            or
+          </div>
+
           <form
-            className="flex flex-1 flex-col gap-3 sm:flex-row"
+            className="flex flex-1 flex-col rounded-xl border border-wood-edge bg-primary/40 p-4"
             onSubmit={(e) => { e.preventDefault(); joinOnline(); }}
           >
-            <label className="sr-only" htmlFor="room-name">Room code or name</label>
-            <input
-              id="room-name"
-              value={roomName}
-              onChange={(e) => setRoomName(e.target.value)}
-              placeholder="Room code"
-              className="flex-1 rounded-lg bg-primary px-3 py-2 text-sm text-parchment outline-none placeholder:text-taupe focus:ring-2 focus:ring-accent"
-            />
-            <button
-              type="submit"
-              className="rounded-lg border border-wood-edge px-6 py-3 font-semibold text-parchment transition hover:border-accent hover:text-accent"
-            >
-              Join room
-            </button>
+            <h4 className="mb-1 font-semibold text-parchment">Join a room</h4>
+            <p className="mb-4 flex-1 text-sm text-taupe">
+              Enter the code your friend shared with you.
+            </p>
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <label className="sr-only" htmlFor="room-name">Room code or name</label>
+              <input
+                id="room-name"
+                value={roomName}
+                onChange={(e) => setRoomName(e.target.value)}
+                placeholder="Room code"
+                className="min-w-0 flex-1 rounded-lg bg-primary px-3 py-2 text-sm text-parchment outline-none placeholder:text-taupe focus:ring-2 focus:ring-accent"
+              />
+              <button
+                type="submit"
+                className="rounded-lg bg-accent px-6 py-3 font-semibold text-primary transition hover:bg-accent-hover"
+              >
+                Join room
+              </button>
+            </div>
           </form>
         </div>
 

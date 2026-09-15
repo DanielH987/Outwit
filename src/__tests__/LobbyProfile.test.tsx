@@ -18,7 +18,8 @@ describe('LobbyPage', () => {
     render(<MemoryRouter><LobbyPage /></MemoryRouter>);
     expect(screen.getByRole('heading', { name: /Game Lobby/i })).toBeInTheDocument();
     expect(screen.getAllByRole('link', { name: /Play now/i })[0]).toHaveAttribute('href', '/game/local');
-    expect(screen.getByText(/Create a game and share the link/i)).toBeInTheDocument();
+    expect(screen.getByText(/Create a room/i)).toBeInTheDocument();
+    expect(screen.getByText(/Join a room/i)).toBeInTheDocument();
   });
 
   it('shows a resume button when a local game is in progress', () => {
@@ -36,12 +37,12 @@ describe('LobbyPage', () => {
     await user.type(input, 'x');
     await user.type(input, '   ');
     // Invalid: single char — error shown, nothing stored.
-    await user.click(screen.getByRole('button', { name: /Create game/i }));
+    await user.click(screen.getByRole('button', { name: /Create room/i }));
     expect(useProfileStore.getState().displayName).toBeNull();
 
     await user.clear(input);
     await user.type(input, 'Alice');
-    await user.click(screen.getByRole('button', { name: /Create game/i }));
+    await user.click(screen.getByRole('button', { name: /Create room/i }));
     expect(useProfileStore.getState().displayName).toBe('Alice');
   });
 
@@ -55,7 +56,7 @@ describe('LobbyPage', () => {
         </Routes>
       </MemoryRouter>
     );
-    await user.click(screen.getByRole('button', { name: /Create game/i }));
+    await user.click(screen.getByRole('button', { name: /Create room/i }));
     expect(screen.getByText('Game room placeholder')).toBeInTheDocument();
   });
 });
@@ -67,7 +68,7 @@ describe('ProfilePage', () => {
 
   it('shows zeroed stats and empty state', () => {
     render(<MemoryRouter><ProfilePage /></MemoryRouter>);
-    expect(screen.getByText(/No games yet/i)).toBeInTheDocument();
+    expect(screen.getByText(/No local games yet/i)).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /guest/i })).toBeInTheDocument();
   });
 

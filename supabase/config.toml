@@ -1,0 +1,26 @@
+# Local Supabase CLI config.
+#
+# NOTE: this project uses a hosted Supabase project (not `supabase start`).
+# This file exists so CLI commands (`supabase db push`, `supabase link`) have a
+# stable project identity. Auth provider settings (redirect URLs, Google OAuth
+# client) are configured in the Supabase dashboard — the CLI has no command for
+# them. See docs/ACCOUNTS.md "Phase C" for the checklist.
+
+project_id = "outwit"
+
+[auth]
+# Magic-link and OAuth callbacks land back on the app root; the client handles
+# the `?code=` exchange via supabase-js `detectSessionInUrl`.
+#
+# Only declare settings we intentionally own. `supabase config push` will not
+# touch properties this file omits (e.g. email confirmations), so remote
+# defaults stay intact.
+site_url = "https://outwit-one.vercel.app"
+additional_redirect_urls = [
+  "https://outwit-one.vercel.app",
+  "https://outwit-one.vercel.app/**",
+  "http://localhost:5173",
+  "http://localhost:5173/**",
+  "http://localhost:4173",
+  "http://localhost:4173/**",
+]

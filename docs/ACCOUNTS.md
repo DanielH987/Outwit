@@ -78,16 +78,50 @@ Deployed verification (fill in per deploy):
 - Commit: `0a6a104` (deployed to Vercel + Render auto-deploy, 2026-09-15)
 - Production (`https://outwit-one.vercel.app`): created room `JSXTRW` from the lobby after setting "ProdAlice"; waiting card showed the code and full invite link. A second browser joined by link, set "ProdBob", and became Black; both names visible; waiting card disappeared. Closed/reopened the first tab → still White. Server `/stats`: `{rooms:1, players:2, moves:0, heapMB:10}` — stable.
 
-## Phase C — Accounts (direction, not scheduled)
+## Phase C — Accounts (in progress)
 
-Only start when the user asks. Sketched scope:
+**Supabase project (created 2026-09-15):** `outwit`, ref `hqgamvpcowjjgxkchtzu`, organization `ndzhubqcfmsndhzfgnkc`, region West US (Oregon). Dashboard: `https://supabase.com/dashboard/project/hqgamvpcowjjgxkchtzu`. The repo is linked locally (`supabase/.temp/linked-project.json`).
 
-- Create a **new free Supabase project** (do not reuse `pacific-connect`); enable **email magic link** + **Google OAuth**.
-- Client: Supabase JS SDK; sign-in UI; migrate the anonymous guest identity to the account on first login (link the existing `userId` if the account is new).
-- Server (`server/index.ts`): verify the Supabase JWT on `join-room` (public key/JWKS, cached); key seats by the authenticated `sub`; reject impersonation attempts. Keep anonymous play working when no token is present (guests remain first-class).
-- Data: `users` (id, display name, created_at) and `matches` (players, result, reason, move count, timestamps). Profile reads online history plus the local pass-and-play stats it already shows.
-- Ratings: only after matches are server-verified; choose a system (Elo or Glicko-2) at that time.
-- Caveats to plan around: Supabase free projects **pause after ~1 week of inactivity**; Render free still sleeps and drops in-memory rooms — persistent match history depends on the database, not the room store. Room persistence (e.g. Upstash Redis) is a **separate** effort that fixes rooms dying on sleep; it is not part of accounts.
+**Guiding rule:** anonymous play stays first-class. Accounts add persistence, trust, and history — they never gate playing a friend.
+
+### C1 — Supabase project + schema — Done
+- [x] Create the free project (Oregon, matching Render).
+- [x] Migration `supabase/migrations/20260915043705_init.sql` applied (`profiles`, `matches`, RLS, new-user trigger).
+- Note: `supabase/config.toml` declares only `auth.site_url` + `auth.additional_redirect_urls`; `supabase config push` leaves undeclared remote settings intact (diff first, always).
+
+### C2 — Client auth — Done
+- [x] `@supabase/supabase-js`; `src/services/supabase.ts` (null client when env vars are absent → guest-only mode).
+- [x] `authStore` v2: `guestUserId` (seat fallback) vs `accountId` (seat when signed in) + `accessToken`.
+- [x] `src/services/account.ts` (magic link, Google OAuth, sign-out, session subscription) and `src/contexts/AccountProvider.tsx`.
+- [x] `AccountCard` on the profile page (email magic link + Continue with Google); seat stays stable on sign-in while waiting, and applies to the next room join mid-game.
+
+### C3 — Server JWT verification — Done
+- [x] `server/auth.ts`: ES256 via JWKS (cached) + HS256 fallback, expiry/audience/algorithm checks.
+- [x] `join-room` accepts `token`; verified `sub` becomes the seat id; identity mismatch is rejected; guests unchanged.
+- [x] Tests: `src/__tests__/auth.test.ts` (9), `src/__tests__/serverAuth.test.ts` (4, real WS + generated keypair).
+
+### C4 — Online match recording — Done
+- [x] `server/matches.ts`: service-role REST insert; disabled without env vars; never throws.
+- [x] `broadcastState` records once per finished room (`room.recorded` guard); verified end-to-end against the real project (`PHASEC2`: `RecAlice` vs `RecBob`, white by resignation, 1 move).
+- [x] Tests: `src/__tests__/matches.test.ts` (6).
+
+### C5 — Profile: online history — Done
+- [x] `src/services/matches.ts` reads `matches` for the current seat id (guest ids and account ids both work).
+- [x] Profile renders **Online games** (win/loss vs opponent, reason, moves, date) alongside local stats and the account card.
+
+### C6 — Verify + deploy — In progress
+- [x] Local: 134 tests passing, lint clean, client + server bundles build.
+- [x] Local end-to-end: two browsers, names recorded to the live DB.
+- [x] Vercel env: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (production).
+- [x] Render env: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` (via the Render API; the CLI cannot set vars on existing services).
+- [ ] **Manual (dashboard, one-time):** Google OAuth needs a Google Cloud OAuth client (authorized redirect URI `https://hqgamvpcowjjgxkchtzu.supabase.co/auth/v1/callback`) pasted into Supabase → Authentication → Providers → Google. Email magic link works without this.
+- [ ] Production end-to-end after deploy: sign in by email → play a room → match appears under Online games.
+
+**Known behavior:** with email confirmations enabled (project default), signing in by magic link both confirms the address and creates the session. Redirect URLs are configured for production and localhost (5173 dev, 4173 preview).
+
+**Secrets:** never commit keys. Vercel/Render env vars only; `.env*` is gitignored. The service-role key is server-only (Render), never `VITE_`-prefixed.
+
+**Scope note:** free-tier Supabase pauses after ~1 week of inactivity, and Render still drops in-memory rooms when it sleeps. Accounts fix identity and history; room persistence (Redis) remains separate.
 
 ## Out of Scope (Phase A)
 

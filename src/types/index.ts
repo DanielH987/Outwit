@@ -55,6 +55,9 @@ export interface JoinRoomPayload {
   roomId: string;
   userId: string | null;
   username: string | null;
+  /** Supabase access token when signed in; the server verifies it and keys the
+   *  seat by its `sub`, ignoring `userId` in that case. Guests omit it. */
+  token?: string | null;
 }
 
 export interface LeaveRoomPayload {
