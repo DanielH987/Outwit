@@ -501,12 +501,14 @@ export interface RunningServer {
 
 /**
  * WebSocket heartbeat interval. Render's proxy can hold a dead TCP connection
- * open long after the client is gone (measured ~11s locally against the proxy),
- * so `close` never fires promptly and a disconnected seat looks connected until
- * the OS times the socket out. A socket that misses one ping round is
- * terminated, so a real disconnect is detected in 1-2 intervals (~5-10s).
+ * open (measured ~11s locally against the proxy), so `close` never fires
+ * promptly and a disconnected seat looks connected until the OS times the
+ * socket out. A socket that misses one ping round is terminated, so a real
+ * disconnect is detected in 1-2 intervals (~3-6s) — keeping the dead-air wait
+ * before the forfeit countdown short. Pings are 2-byte control frames, so the
+ * cost is negligible.
  */
-const HEARTBEAT_INTERVAL_MS = 5_000;
+const HEARTBEAT_INTERVAL_MS = 3_000;
 
 /** Current room/snapshot counts for diagnostics. */
 function serverStats() {

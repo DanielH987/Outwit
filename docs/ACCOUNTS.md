@@ -133,7 +133,7 @@ Deployed verification (fill in per deploy):
 - Email confirmations remain enabled (hosted default): a magic-link sign-in both confirms the address and creates the session.
 - Match recording requires both Render env vars; without them the server runs guest-only and games are not stored.
 - **Disconnect countdown:** while a seat is absent mid-game, `game-state` carries `forfeit: { side, deadline, serverNow, graceSeconds }`. Clients count down against `deadline` using the `serverNow` offset (clock-skew safe) and clear it when the opponent returns or the game ends. Implemented in `server/index.ts` (`maybeStartForfeitTimer` / `roomStatePayload`) and `src/components/ForfeitCountdownBanner.tsx`.
-- **Disconnect detection:** Render's proxy can hold a dead TCP connection open (~11s measured), so `close` alone is too slow to start the forfeit timer. The server runs a WebSocket ping/pong heartbeat (5s interval) and terminates sockets that miss a round, so a vanished client is detected in ~5–10s. Test: `src/__tests__/serverHeartbeat.test.ts` (uses a raw socket that stops reading, i.e. never pongs).
+- **Disconnect detection:** Render's proxy can hold a dead TCP connection open (~11s measured), so `close` alone is too slow to start the forfeit timer. The server runs a WebSocket ping/pong heartbeat (3s interval) and terminates sockets that miss a round, so a vanished client is detected in ~3–6s. Test: `src/__tests__/serverHeartbeat.test.ts` (uses a raw socket that stops reading, i.e. never pongs).
 
 **Secrets:** never commit keys. Vercel/Render env vars only; `.env*` is gitignored. The service-role key is server-only (Render), never `VITE_`-prefixed.
 
