@@ -499,6 +499,15 @@ export interface RunningServer {
   close: () => void;
 }
 
+/**
+ * WebSocket heartbeat interval. Render's proxy can hold a dead TCP connection
+ * open long after the client is gone (measured ~11s locally against the proxy),
+ * so `close` never fires promptly and a disconnected seat looks connected until
+ * the OS times the socket out. A socket that misses one ping round is
+ * terminated, so a real disconnect is detected in 1-2 intervals (~5-10s).
+ */
+const HEARTBEAT_INTERVAL_MS = 5_000;
+
 /** Current room/snapshot counts for diagnostics. */
 function serverStats() {
   let players = 0;
@@ -527,9 +536,33 @@ export function startServer(port = PORT): RunningServer {
 
   const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
 
+  // Liveness: mark each connection alive on connect and on every pong, then
+  // ping all sockets each round. A socket that failed to pong since the last
+  // round is dead — terminate it so `close` runs and the room sees the
+  // disconnect immediately.
+  const alive = new WeakSet<WebSocket>();
+  const heartbeat = setInterval(() => {
+    for (const ws of wss.clients) {
+      if (!alive.has(ws)) {
+        ws.terminate();
+        continue;
+      }
+      alive.delete(ws);
+      try {
+        ws.ping();
+      } catch {
+        ws.terminate();
+      }
+    }
+  }, HEARTBEAT_INTERVAL_MS);
+  heartbeat.unref?.();
+
   wss.on('connection', (ws) => {
     const userId = `user-${nextUserSuffix++}`;
     const client: ClientInfo = { ws, userId, username: null, roomId: null };
+
+    alive.add(ws);
+    ws.on('pong', () => alive.add(ws));
 
     send(ws, { type: 'connected', payload: { userId } });
 
@@ -565,6 +598,7 @@ export function startServer(port = PORT): RunningServer {
     httpServer,
     close() {
       clearInterval(sweep);
+      clearInterval(heartbeat);
       wss.close();
       httpServer.close();
     },
