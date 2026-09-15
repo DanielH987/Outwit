@@ -1,21 +1,24 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import userEvent from '@testing-library/user-event';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { LobbyPage } from '../pages/LobbyPage';
 import { ProfilePage } from '../pages/ProfilePage';
 import { useLocalGameStore } from '../stores/localGameStore';
+import { useProfileStore } from '../stores/profileStore';
 import { useStatsStore } from '../stores/statsStore';
 
 describe('LobbyPage', () => {
   beforeEach(() => {
     useLocalGameStore.getState().reset();
+    useProfileStore.setState({ displayName: null });
   });
 
   it('shows local pass-and-play CTA and links to /game/local', () => {
     render(<MemoryRouter><LobbyPage /></MemoryRouter>);
     expect(screen.getByRole('heading', { name: /Game Lobby/i })).toBeInTheDocument();
     expect(screen.getAllByRole('link', { name: /Play now/i })[0]).toHaveAttribute('href', '/game/local');
-    expect(screen.getByText(/Two players connect to the same room name/i)).toBeInTheDocument();
+    expect(screen.getByText(/Create a game and share the link/i)).toBeInTheDocument();
   });
 
   it('shows a resume button when a local game is in progress', () => {
@@ -23,6 +26,37 @@ describe('LobbyPage', () => {
     useLocalGameStore.getState().moveSelected({ x: 0, y: 6 });
     render(<MemoryRouter><LobbyPage /></MemoryRouter>);
     expect(screen.getByRole('link', { name: /Resume local game/i })).toHaveAttribute('href', '/game/local');
+  });
+
+  it('saves the display name and rejects invalid ones', async () => {
+    const user = userEvent.setup();
+    render(<MemoryRouter><LobbyPage /></MemoryRouter>);
+
+    const input = screen.getByLabelText(/Your name/i);
+    await user.type(input, 'x');
+    await user.type(input, '   ');
+    // Invalid: single char — error shown, nothing stored.
+    await user.click(screen.getByRole('button', { name: /Create game/i }));
+    expect(useProfileStore.getState().displayName).toBeNull();
+
+    await user.clear(input);
+    await user.type(input, 'Alice');
+    await user.click(screen.getByRole('button', { name: /Create game/i }));
+    expect(useProfileStore.getState().displayName).toBe('Alice');
+  });
+
+  it('create game navigates to a generated 6-character room code', async () => {
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter initialEntries={['/lobby']}>
+        <Routes>
+          <Route path="/lobby" element={<LobbyPage />} />
+          <Route path="/game/:roomId" element={<p>Game room placeholder</p>} />
+        </Routes>
+      </MemoryRouter>
+    );
+    await user.click(screen.getByRole('button', { name: /Create game/i }));
+    expect(screen.getByText('Game room placeholder')).toBeInTheDocument();
   });
 });
 

@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import { useWebSocket } from '@/contexts/WebSocketProvider';
 import { webSocketService } from '@/services/websocket';
-import { useAuthStore } from '@/stores';
+import { effectiveDisplayName, useAuthStore } from '@/stores';
 import type { ClientMessage } from '@/types';
 
 /**
@@ -16,8 +16,10 @@ export function useWebSocketActions() {
   const { send } = useWebSocket();
 
   const getAuth = useCallback(() => {
-    const { userId, username } = useAuthStore.getState();
-    return { userId: userId ?? null, username: username ?? null };
+    const { userId } = useAuthStore.getState();
+    // Display name comes from profileStore (device-wide); falls back to a
+    // generated Guest name when the player never set one.
+    return { userId: userId ?? null, username: effectiveDisplayName() };
   }, []);
 
   const joinRoom = useCallback(

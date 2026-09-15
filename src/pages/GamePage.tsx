@@ -5,8 +5,9 @@ import { ChatPanel } from '@/components/ChatPanel';
 import { GameClocks } from '@/components/GameClocks';
 import { GameControls } from '@/components/GameControls';
 import { MoveHistoryPanel } from '@/components/MoveHistoryPanel';
+import { WaitingForOpponent } from '@/components/WaitingForOpponent';
 import { chipAt, getLegalMoves, samePosition } from '@/engine';
-import { useGameStore, useLocalGameStore } from '@/stores';
+import { useGameStore, useLocalGameStore, useProfileStore } from '@/stores';
 import type { MoveRecord } from '@/stores/localGameStore';
 import { useWebSocketActions } from '@/hooks/useWebSocketActions';
 import { useAuthStore } from '@/stores';
@@ -122,7 +123,11 @@ function LocalGameView() {
 function OnlineGameView({ roomId }: { roomId: string }) {
   const { gameState, selectedChipId, lastError } = useGameStore();
   const { joinRoom, leaveRoom, makeMove, sendChat, resign: sendResign, offerDraw: sendOfferDraw, respondDraw } = useWebSocketActions();
-  const { username, userId } = useAuthStore();
+  const { userId } = useAuthStore();
+  const displayName = useProfileStore((s) => s.displayName);
+  const setDisplayName = useProfileStore((s) => s.setDisplayName);
+  const [nameDraft, setNameDraft] = useState('');
+  const [nameError, setNameError] = useState<string | null>(null);
 
   useEffect(() => {
     joinRoom(roomId);
@@ -206,11 +211,43 @@ function OnlineGameView({ roomId }: { roomId: string }) {
         </div>
         <p className="text-sm text-taupe">
           {mySide ? `You are ${mySide}. ` : ''}
-          {username ? `Logged in as ${username}. ` : ''}
+          {displayName ? `Playing as ${displayName}. ` : ''}
           {gameState.result.status === 'in-progress'
             ? `${gameState.board.sideToMove === 'white' ? 'White' : 'Black'} to move.`
             : 'Game over.'}
         </p>
+
+        {/* Name editor: lets a player who followed an invite link set a name. */}
+        <div className="flex flex-col gap-1">
+          <label htmlFor="game-display-name" className="text-xs font-semibold uppercase tracking-wide text-taupe">
+            Your name
+          </label>
+          <div className="flex gap-2">
+            <input
+              id="game-display-name"
+              value={nameDraft}
+              onChange={(e) => { setNameDraft(e.target.value); setNameError(null); }}
+              placeholder={displayName ?? 'Guest ####'}
+              maxLength={20}
+              className="min-w-0 flex-1 rounded-lg bg-primary px-3 py-2 text-sm text-parchment outline-none placeholder:text-taupe focus:ring-2 focus:ring-accent"
+            />
+            <button
+              type="button"
+              onClick={() => {
+                const ok = setDisplayName(nameDraft);
+                setNameError(ok ? null : 'Name must be 2–20 characters.');
+                if (ok) setNameDraft('');
+              }}
+              className="shrink-0 rounded-lg border border-wood-edge px-3 py-2 text-sm font-semibold transition hover:border-accent hover:text-accent"
+            >
+              Save
+            </button>
+          </div>
+          {nameError && <p role="alert" className="text-xs text-danger">{nameError}</p>}
+        </div>
+
+        {gameState.players.length < 2 && <WaitingForOpponent roomId={roomId} />}
+
         {lastError && (
           <p role="alert" className="rounded-lg bg-danger/25 px-3 py-1 text-sm text-danger">
             {lastError}

@@ -1,10 +1,13 @@
 import { AppRoutes } from './routes';
+import { IdentityProvider } from './contexts/IdentityProvider';
 import { WebSocketProvider } from './contexts/WebSocketProvider';
 
 export function App() {
   return (
-    <WebSocketProvider>
-      <AppRoutes />
-    </WebSocketProvider>
+    <IdentityProvider>
+      <WebSocketProvider>
+        <AppRoutes />
+      </WebSocketProvider>
+    </IdentityProvider>
   );
 }

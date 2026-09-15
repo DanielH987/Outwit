@@ -1,26 +1,49 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { webSocketService } from '@/services/websocket';
-import { useLocalGameStore } from '@/stores';
+import { useLocalGameStore, useProfileStore } from '@/stores';
+import { generateInviteCode, isValidInviteCode, normalizeInviteCode } from '@/utils/inviteCode';
 import type { GameRoom } from '@/types';
 
 export function LobbyPage() {
   const [rooms] = useState<GameRoom[]>([]);
   const [roomName, setRoomName] = useState('quick-match');
+  const [nameDraft, setNameDraft] = useState('');
+  const [nameError, setNameError] = useState<string | null>(null);
   const navigate = useNavigate();
   const localResult = useLocalGameStore((s) => s.result);
   const localMoves = useLocalGameStore((s) => s.moveHistory.length);
   const localInProgress = localResult.status === 'in-progress' && localMoves > 0;
+  const displayName = useProfileStore((s) => s.displayName);
+  const setDisplayName = useProfileStore((s) => s.setDisplayName);
 
   useEffect(() => {
     webSocketService.connect();
     return () => {};
   }, []);
 
+  const saveName = (): boolean => {
+    // Nothing typed: keep the current name (or the generated guest fallback).
+    if (nameDraft.trim() === '' && displayName) return true;
+    const value = nameDraft.trim() === '' ? displayName ?? '' : nameDraft;
+    if (value === '') return true;
+    const ok = setDisplayName(value);
+    setNameError(ok ? null : 'Name must be 2–20 characters.');
+    return ok;
+  };
+
+  const createGame = () => {
+    if (!saveName()) return;
+    navigate(`/game/${generateInviteCode()}`);
+  };
+
   const joinOnline = () => {
-    const name = roomName.trim();
-    if (!name) return;
-    navigate(`/game/${encodeURIComponent(name)}`);
+    if (!saveName()) return;
+    const raw = roomName.trim();
+    if (!raw) return;
+    // Codes are normalized; anything else stays a free-text room name.
+    const roomId = isValidInviteCode(raw) ? normalizeInviteCode(raw) : raw;
+    navigate(`/game/${encodeURIComponent(roomId)}`);
   };
 
   return (
@@ -50,34 +73,58 @@ export function LobbyPage() {
         </div>
       </section>
 
-      {/* Online multiplayer: run `npm run server`, then join any room name. */}
+      {/* Online multiplayer: create a game and share the link, or join by code. */}
       <section aria-label="Online rooms" className="mb-10 rounded-xl bg-surface p-6 shadow-lg shadow-black/30">
-        <h3 className="mb-1 text-xl font-semibold">Online room</h3>
+        <h3 className="mb-1 text-xl font-semibold">Play with a friend</h3>
         <p className="mb-4 text-sm text-taupe">
-          Two players connect to the same room name; the first joiner is White, the second is Black.
-          Share the room name with a friend, or type anything and open
-          <code className="mx-1 rounded bg-primary px-1 py-0.5">/game/&lt;room&gt;</code> on both
-          devices. Rooms are live; the first connection may take up to a minute while the server wakes.
+          Create a game and share the link, or enter a friend's room code. The first player to join is
+          White, the second is Black. Rooms are live; the first connection may take up to a minute
+          while the server wakes.
         </p>
-        <form
-          className="flex flex-col gap-3 sm:flex-row"
-          onSubmit={(e) => { e.preventDefault(); joinOnline(); }}
-        >
-          <label className="sr-only" htmlFor="room-name">Room name</label>
+
+        <div className="mb-4 flex max-w-sm flex-col gap-1">
+          <label htmlFor="display-name" className="text-xs font-semibold uppercase tracking-wide text-taupe">
+            Your name
+          </label>
           <input
-            id="room-name"
-            value={roomName}
-            onChange={(e) => setRoomName(e.target.value)}
-            placeholder="Room name"
-            className="flex-1 rounded-lg bg-primary px-3 py-2 text-sm text-parchment outline-none placeholder:text-taupe focus:ring-2 focus:ring-accent"
+            id="display-name"
+            value={nameDraft}
+            onChange={(e) => { setNameDraft(e.target.value); setNameError(null); }}
+            placeholder={displayName ?? 'Guest ####'}
+            maxLength={20}
+            className="rounded-lg bg-primary px-3 py-2 text-sm text-parchment outline-none placeholder:text-taupe focus:ring-2 focus:ring-accent"
           />
+          {nameError && <p role="alert" className="text-xs text-danger">{nameError}</p>}
+        </div>
+
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
           <button
-            type="submit"
+            type="button"
+            onClick={createGame}
             className="rounded-lg bg-accent px-6 py-3 font-semibold text-primary transition hover:bg-accent-hover"
           >
-            Join online room
+            Create game
           </button>
-        </form>
+          <form
+            className="flex flex-1 flex-col gap-3 sm:flex-row"
+            onSubmit={(e) => { e.preventDefault(); joinOnline(); }}
+          >
+            <label className="sr-only" htmlFor="room-name">Room code or name</label>
+            <input
+              id="room-name"
+              value={roomName}
+              onChange={(e) => setRoomName(e.target.value)}
+              placeholder="Room code"
+              className="flex-1 rounded-lg bg-primary px-3 py-2 text-sm text-parchment outline-none placeholder:text-taupe focus:ring-2 focus:ring-accent"
+            />
+            <button
+              type="submit"
+              className="rounded-lg border border-wood-edge px-6 py-3 font-semibold text-parchment transition hover:border-accent hover:text-accent"
+            >
+              Join room
+            </button>
+          </form>
+        </div>
 
         {rooms.length > 0 && (
           <ul className="mt-4 grid gap-3 sm:grid-cols-2">

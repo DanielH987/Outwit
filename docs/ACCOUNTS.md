@@ -1,6 +1,6 @@
 # Outwit — Accounts, Identity & Multiplayer Plan
 
-**Status:** Phase A (named guests + invite links + persistent device identity) is **planned, not implemented**. Phase C (accounts) is a documented direction. This document is the handoff spec for anyone (human or agent) picking this up; it assumes no prior chat context.
+**Status:** Phase A (named guests + invite links + persistent device identity) **implemented** (M6.1, M6.2, and M6.3 verification complete as of 2026-09-15; see the checklists below). Phase C (accounts) is a documented direction. This document is the handoff spec for anyone (human or agent) picking this up; it assumes no prior chat context.
 
 **Read this with:** [`ROADMAP.md`](../ROADMAP.md) (phases and open questions), [`docs/DEPLOYMENT.md`](DEPLOYMENT.md) (hosting, env vars, incidents), [`docs/RULES.md`](RULES.md) (game rules), [`AGENTS.md`](../AGENTS.md) (conventions).
 
@@ -41,51 +41,42 @@
 
 ## Phase A — Milestones
 
-### M6.1 — Display names + invite UX (client-only)
+### M6.1 — Display names + invite UX (client-only) — Done
 
 Goal: friend play feels intentional — real names, a "create game → copy link" flow.
 
-- [ ] Add `src/stores/profileStore.ts`: `displayName: string | null`, `setDisplayName(name)` (trim, 2–20 chars), persisted to `localStorage` as `outwit-profile`. Keep it separate from `authStore` (seat identity) because the name is device-wide while seats are per-tab. Export from `src/stores/index.ts`.
-- [ ] Add `src/utils/inviteCode.ts`: `generateInviteCode()` (6 chars, unambiguous alphabet) and `isValidInviteCode(code)`. Unit-test both, including "never contains I/O/0/1" and length/alphabet checks.
-- [ ] Lobby online card (`src/pages/LobbyPage.tsx`):
-  - "Your name" input bound to `profileStore` (placeholder `Guest ####`).
-  - **Create game** button → navigate to `/game/<generated-code>`.
-  - Keep "join with code" (accepts a code or any free-text room name; uppercase-normalize codes).
-  - Update the existing copy as needed (a test asserts `Two players connect to the same room name`; update it deliberately).
-- [ ] Game online panel (`src/pages/GamePage.tsx`):
-  - Name editor when `displayName` is unset (or editable always).
-  - When `players.length < 2`: a **Waiting for opponent** card showing the room code, the full invite URL, and a **Copy link** button. Use `navigator.clipboard.writeText` with a graceful fallback (selectable read-only input + "Copied" state); use `navigator.share` on mobile when available.
-- [ ] Ensure the display name flows through the existing protocol: `useWebSocketActions` already sends `username` on `join-room` and `send-chat`; verify the game's players list and chat show the name.
-- [ ] Tests: invite code utils; profile store; updated `LobbyProfile.test.tsx`; name included in the join payload (mock the WS service) and in chat.
+- [x] Add `src/stores/profileStore.ts`: `displayName: string | null`, `setDisplayName(name)` (trim, 2–20 chars), persisted to `localStorage` as `outwit-profile`. Kept separate from `authStore` (seat identity). Exported from `src/stores/index.ts` (plus `effectiveDisplayName()` with a per-tab stable `Guest ####` fallback).
+- [x] Add `src/utils/inviteCode.ts`: `generateInviteCode()` (6 chars, `ABCDEFGHJKMNPQRSTUVWXYZ23456789`), `normalizeInviteCode`, `isValidInviteCode`, `inviteUrl`. Unit-tested (never I/O/0/1, length/alphabet, case-normalization).
+- [x] Lobby (`src/pages/LobbyPage.tsx`): "Your name" field, **Create game** → `/game/<CODE>`, "join with code" (codes normalized; free-text room names still accepted), inline validation error.
+- [x] Game panel (`src/pages/GamePage.tsx`): name editor with **Save**; **Waiting for opponent** card (`src/components/WaitingForOpponent.tsx`) with room code, read-only invite link, **Copy** (`navigator.clipboard` + selectable fallback), and **Share…** when the Web Share API exists.
+- [x] Display name flows through the protocol: `useWebSocketActions` sends `effectiveDisplayName()` as `username` on `join-room` and `send-chat`; players list and chat show it.
+- [x] Tests: `inviteCode.test.ts`, `profileStore.test.ts`, `WaitingForOpponent.test.tsx`, updated `LobbyProfile.test.tsx`.
 
-**Verify:** `npx vitest run`, `npm run lint`, `npm run build` all green. Local check: two browsers (or two contexts) with different names join the same generated code; chat and the players list show the names.
-
-### M6.2 — Persistent device identity (client-only)
+### M6.2 — Persistent device identity (client-only) — Done
 
 Goal: closing and reopening the tab keeps your seat (within the room TTL), while two tabs stay two players.
 
-- [ ] Add `src/services/identity.ts`:
-  - `localStorage['outwit-device-id']`, generated once; **adopt** an existing `sessionStorage` `userId` if present (migration — avoids changing identity mid-session).
-  - `initIdentity(): Promise<string>`:
-    - If `navigator.locks` exists: `navigator.locks.request('outwit-seat', { ifAvailable: true }, lock => …)` and **hold the lock for the tab's lifetime** (return a never-resolving promise while `lock !== null`). Primary tab → device id; second tab (`lock === null`) → ephemeral id.
-    - Otherwise: return the current per-tab id (today's behavior).
-  - Re-entrant/no-locks paths must be side-effect free and testable.
-- [ ] `src/stores/authStore.ts`: add `setUserId(id: string)`; keep the sessionStorage persist and migration as-is.
-- [ ] `src/contexts/WebSocketProvider.tsx`: on mount, call `initIdentity()`; if the resolved id differs from the store's `userId`, update the store and re-send `join-room` for the active room. Reuse `webSocketService.setActiveRoom(...)`/its reconnect rejoin path; the service already dedupes queued `join-room` messages, so do not add a second join path.
-- [ ] Tests: mocked `navigator.locks` cases (first tab gets device id; second tab gets an ephemeral id; no-locks fallback returns the per-tab id); identity-change triggers a rejoin with the new `userId`.
+- [x] Add `src/services/identity.ts`: `localStorage['outwit-device-id']` (adopting the existing per-tab id on first run as a migration), `resolveIdentity()` using `navigator.locks.request('outwit-seat', { ifAvailable: true })` held for the tab's lifetime (first tab → device id; extra tabs → ephemeral id; no Web Locks → per-tab fallback; lock failure → ephemeral fallback). Releases on `pagehide`.
+- [x] `src/stores/authStore.ts`: `setUserId(id)` added.
+- [x] Add `src/contexts/IdentityProvider.tsx`: resolves identity once at startup, stores it via `setUserId`, and **gates render** until known — so every `join-room` carries the final seat id (no rejoin race, no duplicate joins).
+- [x] Tests: `identity.test.ts` (device id reuse, migration, first-tab ownership, second-tab isolation, no-locks fallback, lock-failure fallback).
 
-**Verify:** local check — open a room, close the tab, reopen `/game/<room>` within 30 minutes: same seat (server still shows you connected/white or black as before). Open two tabs: they are two distinct seats.
+### M6.3 — Docs + end-to-end verification — Done (2026-09-15)
 
-### M6.3 — Docs + end-to-end verification
+- [x] `ROADMAP.md` open question 3 resolved; `AGENTS.md` and `docs/DEPLOYMENT.md` updated.
+- [x] Automated gates: 115 tests passing, lint 0 errors (2 intentional react-refresh warnings for provider+hook files), production build green.
+- [x] Browser verification (local production build + local server, Playwright):
+  - Lobby: set "Alice", **Create game** → `/game/JWSJSC`; waiting card showed the code and full invite link.
+  - Second browser joined via the invite link, set "Bob" → seats white/black; both names visible; waiting card disappeared.
+  - Identity: `localStorage['outwit-device-id']` set and matches the session `userId`.
+  - Tab close/reopen (same context): same seat retained (white) with the same `userId`.
+  - Two tabs in one context: distinct user ids and seats (white + black).
+- Production verification and deploy: recorded after deployment (see the commit message / below).
 
-- [ ] Confirm `ROADMAP.md` open question 3 is resolved (guest now, accounts later) and links here.
-- [ ] Update `AGENTS.md` if identity conventions changed during implementation.
-- [ ] Production verification after deploy:
-  - Two devices with names complete a game through `https://outwit-one.vercel.app`.
-  - Create game → copy link → second device joins by link.
-  - Close/reopen the primary tab → seat preserved.
-  - Two tabs → two players.
-- [ ] Record the result here (date, commit, anything surprising).
+Deployed verification (fill in per deploy):
+
+- Commit: _pending_
+- Production: _pending_
 
 ## Phase C — Accounts (direction, not scheduled)
 

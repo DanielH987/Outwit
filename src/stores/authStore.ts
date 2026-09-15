@@ -13,6 +13,8 @@ interface AuthState {
   /** Server-assigned id from the current connection (reassigned each reconnect). */
   connectionId: string | null;
   setUser: (userId: string, username: string) => void;
+  /** Replace the seat identity (device-identity resolution, migration). */
+  setUserId: (userId: string) => void;
   setConnectionId: (id: string) => void;
   logout: () => void;
 }
@@ -27,6 +29,7 @@ export const useAuthStore = create<AuthState>()(
       connectionId: null,
       setUser: (userId, username) =>
         set({ userId, username, isAuthenticated: true }),
+      setUserId: (userId) => set({ userId }),
       setConnectionId: (id) => set({ connectionId: id }),
       logout: () =>
         set({
