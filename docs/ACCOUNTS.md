@@ -75,8 +75,8 @@ Goal: closing and reopening the tab keeps your seat (within the room TTL), while
 
 Deployed verification (fill in per deploy):
 
-- Commit: _pending_
-- Production: _pending_
+- Commit: `0a6a104` (deployed to Vercel + Render auto-deploy, 2026-09-15)
+- Production (`https://outwit-one.vercel.app`): created room `JSXTRW` from the lobby after setting "ProdAlice"; waiting card showed the code and full invite link. A second browser joined by link, set "ProdBob", and became Black; both names visible; waiting card disappeared. Closed/reopened the first tab → still White. Server `/stats`: `{rooms:1, players:2, moves:0, heapMB:10}` — stable.
 
 ## Phase C — Accounts (direction, not scheduled)
 
