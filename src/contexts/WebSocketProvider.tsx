@@ -1,10 +1,14 @@
-import { createContext, useContext, useEffect, useMemo, type ReactNode } from 'react';
-import { webSocketService } from '@/services/websocket';
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { webSocketService, type ConnectionState } from '@/services/websocket';
 import { effectiveDisplayName, useAuthStore, useGameStore } from '@/stores';
 import type { ServerMessage } from '@/types';
 
 interface WebSocketContextValue {
   send: typeof webSocketService.send;
+  /** Live connection state; drives the "server unavailable" messaging. */
+  connection: ConnectionState;
+  /** Retry immediately rather than waiting for the next scheduled attempt. */
+  retry: () => void;
 }
 
 const WebSocketContext = createContext<WebSocketContextValue | null>(null);
@@ -12,6 +16,9 @@ const WebSocketContext = createContext<WebSocketContextValue | null>(null);
 export function WebSocketProvider({ children }: { children: ReactNode }) {
   const { updateGameState, addMessage, setActivePlayers, setLastError } = useGameStore();
   const setConnectionId = useAuthStore((s) => s.setConnectionId);
+  const [connection, setConnection] = useState<ConnectionState>(() =>
+    webSocketService.getConnectionState()
+  );
 
   // `this` is bound and memoized so consumers can pass `send` around without
   // re-creating it each render (which would invalidate every useCallback dep
@@ -20,6 +27,14 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
     () => webSocketService.send.bind(webSocketService),
     []
   );
+
+  const retry = useMemo(() => () => webSocketService.retryNow(), []);
+
+  useEffect(() => {
+    const unsubscribeState = webSocketService.onStateChange(setConnection);
+    setConnection(webSocketService.getConnectionState());
+    return unsubscribeState;
+  }, []);
 
   useEffect(() => {
     const handler = (message: ServerMessage) => {
@@ -71,7 +86,7 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <WebSocketContext.Provider value={{ send }}>
+    <WebSocketContext.Provider value={{ send, connection, retry }}>
       {children}
     </WebSocketContext.Provider>
   );
@@ -83,4 +98,20 @@ export function useWebSocket() {
     throw new Error('useWebSocket must be used within a WebSocketProvider');
   }
   return context;
+}
+
+/**
+ * Connection info that is safe to read without a provider. Used by UI that can
+ * render anywhere (e.g. `ServerUnavailable`), so it never crashes a page that
+ * isn't wired to the socket yet.
+ */
+export function useOptionalWebSocket(): WebSocketContextValue {
+  const context = useContext(WebSocketContext);
+  return (
+    context ?? {
+      send: () => {},
+      connection: { status: 'closed', failures: 0 },
+      retry: () => {},
+    }
+  );
 }

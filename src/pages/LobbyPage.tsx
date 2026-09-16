@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { ServerUnavailable } from '@/components/ServerUnavailable';
 import { webSocketService } from '@/services/websocket';
 import { useLocalGameStore, useProfileStore } from '@/stores';
 import { generateInviteCode, isValidInviteCode, normalizeInviteCode } from '@/utils/inviteCode';
@@ -78,6 +79,11 @@ export function LobbyPage() {
             Change name
           </Link>
         </p>
+
+        {/* Online play needs the server; warn instead of failing silently. */}
+        <div className="mb-4">
+          <ServerUnavailable showLocalHint />
+        </div>
 
         <div className="flex flex-col gap-4 sm:flex-row sm:items-stretch">
           <div className="flex flex-1 flex-col rounded-xl border border-wood-edge bg-primary/40 p-4">

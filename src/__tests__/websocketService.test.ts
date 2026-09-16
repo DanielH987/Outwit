@@ -109,4 +109,66 @@ describe('WebSocketService', () => {
     fresh.open();
     expect(fresh.sent.filter((m) => JSON.parse(m).type === 'join-room')).toHaveLength(0);
   });
+
+  it('tracks connection failures so the UI can explain an outage', () => {
+    vi.useFakeTimers();
+    const service = new WebSocketService();
+    const seen: Array<{ status: string; failures: number }> = [];
+    service.onStateChange((s) => seen.push({ status: s.status, failures: s.failures }));
+
+    service.connect();
+    expect(service.getConnectionState()).toEqual({ status: 'connecting', failures: 0 });
+
+    // The server is down: the socket closes without ever opening. A real close
+    // sets readyState to CLOSED first, so mirror that here.
+    const fail = (socket: FakeWebSocket) => {
+      socket.close();
+      socket.onclose?.();
+    };
+
+    fail(FakeWebSocket.instances[0]);
+    expect(service.getConnectionState()).toEqual({ status: 'closed', failures: 1 });
+
+    vi.advanceTimersByTime(3000);
+    fail(FakeWebSocket.instances[1]);
+    expect(service.getConnectionState().failures).toBe(2);
+
+    // A successful open clears the failure count.
+    vi.advanceTimersByTime(3000);
+    FakeWebSocket.instances[2].open();
+    expect(service.getConnectionState()).toEqual({ status: 'open', failures: 0 });
+
+    // Subscribers saw each transition.
+    expect(seen.map((s) => s.status)).toContain('connecting');
+    expect(seen.map((s) => s.status)).toContain('closed');
+    expect(seen.map((s) => s.status)).toContain('open');
+  });
+
+  it('retryNow() reconnects immediately instead of waiting for the backoff', () => {
+    vi.useFakeTimers();
+    const service = new WebSocketService();
+    service.connect();
+    FakeWebSocket.instances[0].close();
+    FakeWebSocket.instances[0].onclose?.();
+    expect(FakeWebSocket.instances).toHaveLength(1);
+
+    service.retryNow();
+    expect(FakeWebSocket.instances).toHaveLength(2);
+
+    // The pending backoff timer must not cause a third attempt.
+    vi.advanceTimersByTime(10_000);
+    expect(FakeWebSocket.instances).toHaveLength(2);
+  });
+
+  it('does not count a close after a successful open as a failed attempt', () => {
+    vi.useFakeTimers();
+    const service = new WebSocketService();
+    service.connect();
+    FakeWebSocket.instances[0].open();
+
+    // Healthy connection drops later (e.g. server restart).
+    FakeWebSocket.instances[0].close();
+    FakeWebSocket.instances[0].onclose?.();
+    expect(service.getConnectionState()).toEqual({ status: 'closed', failures: 0 });
+  });
 });

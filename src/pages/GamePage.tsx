@@ -8,11 +8,13 @@ import { GameControls } from '@/components/GameControls';
 import { GameOverDialog } from '@/components/GameOverDialog';
 import { MoveHistoryPanel } from '@/components/MoveHistoryPanel';
 import { ReplayControls } from '@/components/ReplayControls';
+import { ServerUnavailable, UNAVAILABLE_AFTER_FAILURES } from '@/components/ServerUnavailable';
 import { WaitingForOpponent } from '@/components/WaitingForOpponent';
 import { boardAtMove, chipAt, getLegalMoves, samePosition } from '@/engine';
 import { useGameStore, useLocalGameStore } from '@/stores';
 import type { MoveRecord } from '@/stores/localGameStore';
 import { useWebSocketActions } from '@/hooks/useWebSocketActions';
+import { useWebSocket } from '@/contexts/WebSocketProvider';
 import { useAuthStore } from '@/stores';
 import type { Position } from '@/engine';
 
@@ -203,6 +205,7 @@ function LocalGameView() {
 function OnlineGameView({ roomId }: { roomId: string }) {
   const { gameState, selectedChipId, lastError } = useGameStore();
   const { joinRoom, leaveRoom, makeMove, sendChat, resign: sendResign, offerDraw: sendOfferDraw, respondDraw } = useWebSocketActions();
+  const { connection, retry } = useWebSocket();
   const { userId } = useAuthStore();
   const [dismissedResultKey, setDismissedResultKey] = useState<string | null>(null);
   const navigate = useNavigate();
@@ -284,8 +287,9 @@ function OnlineGameView({ roomId }: { roomId: string }) {
 
   if (!gameState) {
     return (
-      <main className="flex flex-1 items-center justify-center text-taupe">
-        <p>Connecting to server...</p>
+      <main className="flex flex-1 flex-col items-center justify-center gap-4 px-4 text-taupe">
+        <ServerUnavailable showLocalHint />
+        {connection.failures < UNAVAILABLE_AFTER_FAILURES && <p>Connecting to server...</p>}
       </main>
     );
   }
@@ -337,6 +341,27 @@ function OnlineGameView({ roomId }: { roomId: string }) {
               gameState.players.find((p) => p.side === gameState.forfeit!.side)?.username ?? null
             }
           />
+        )}
+
+        {/* Connection lost mid-game: the board freezes on the last known state. */}
+        {connection.status !== 'open' && connection.failures >= UNAVAILABLE_AFTER_FAILURES && (
+          <div
+            role="alert"
+            data-testid="connection-lost"
+            className="rounded-xl border border-danger/60 bg-danger/15 p-3 text-sm text-parchment shadow-lg shadow-black/30"
+          >
+            <p className="font-semibold">Connection lost</p>
+            <p className="mb-2 text-xs text-parchment/90">
+              Reconnecting to the server. The board shows the last position we received.
+            </p>
+            <button
+              type="button"
+              onClick={retry}
+              className="rounded-lg bg-accent px-3 py-1 text-xs font-semibold text-primary transition hover:bg-accent-hover"
+            >
+              Try again
+            </button>
+          </div>
         )}
 
         {lastError && (

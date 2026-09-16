@@ -8,17 +8,37 @@ const WS_URL = base.endsWith('/ws') ? base : `${base}/ws`;
 
 type MessageHandler = (message: ServerMessage) => void;
 
+/** Observable connection state so the UI can explain outages instead of hanging. */
+export interface ConnectionState {
+  status: 'connecting' | 'open' | 'closed';
+  /** Consecutive failed attempts; reset on a successful open. */
+  failures: number;
+}
+
+type ConnectionStateHandler = (state: ConnectionState) => void;
+
 const MAX_QUEUED = 50;
 
 export class WebSocketService {
   private socket: WebSocket | null = null;
   private handlers: MessageHandler[] = [];
+  private stateHandlers: ConnectionStateHandler[] = [];
   private reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
   /** Messages sent before the socket opens; flushed on open. */
   private queue: ClientMessage[] = [];
   /** Last joined room; re-sent on reconnect so the server re-binds our seat. */
   private activeRoom: JoinRoomPayload | null = null;
   private manuallyClosed = false;
+  private state: ConnectionState = { status: 'closed', failures: 0 };
+
+  private setState(next: Partial<ConnectionState>) {
+    this.state = { ...this.state, ...next };
+    this.stateHandlers.forEach((handler) => handler(this.state));
+  }
+
+  getConnectionState(): ConnectionState {
+    return this.state;
+  }
 
   connect() {
     this.manuallyClosed = false;
@@ -26,14 +46,18 @@ export class WebSocketService {
       return;
     }
 
+    this.setState({ status: 'connecting' });
+
     try {
       this.socket = new WebSocket(WS_URL);
     } catch {
+      this.setState({ status: 'closed', failures: this.state.failures + 1 });
       this.scheduleReconnect();
       return;
     }
 
     this.socket.onopen = () => {
+      this.setState({ status: 'open', failures: 0 });
       const pending = this.queue;
       this.queue = [];
       for (const message of pending) {
@@ -63,6 +87,13 @@ export class WebSocketService {
     };
 
     this.socket.onclose = () => {
+      // A close before opening counts as a failed attempt (server down, 503,
+      // network error, cold start timeout). Reset by `onopen`.
+      if (this.state.status !== 'open') {
+        this.setState({ status: 'closed', failures: this.state.failures + 1 });
+      } else {
+        this.setState({ status: 'closed' });
+      }
       if (!this.manuallyClosed) this.scheduleReconnect();
     };
   }
@@ -70,6 +101,17 @@ export class WebSocketService {
   private scheduleReconnect() {
     if (this.reconnectTimeout) clearTimeout(this.reconnectTimeout);
     this.reconnectTimeout = setTimeout(() => this.connect(), 3000);
+  }
+
+  /** Retry immediately instead of waiting for the reconnect timer. */
+  retryNow() {
+    if (this.reconnectTimeout) {
+      clearTimeout(this.reconnectTimeout);
+      this.reconnectTimeout = null;
+    }
+    this.socket?.close();
+    this.socket = null;
+    this.connect();
   }
 
   disconnect() {
@@ -116,6 +158,14 @@ export class WebSocketService {
     this.handlers.push(handler);
     return () => {
       this.handlers = this.handlers.filter((h) => h !== handler);
+    };
+  }
+
+  /** Subscribe to connection-state changes (for "server unavailable" UI). */
+  onStateChange(handler: ConnectionStateHandler) {
+    this.stateHandlers.push(handler);
+    return () => {
+      this.stateHandlers = this.stateHandlers.filter((h) => h !== handler);
     };
   }
 }
