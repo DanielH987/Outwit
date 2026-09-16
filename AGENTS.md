@@ -8,9 +8,9 @@ Build a local-playable prototype of **Outwit**, a custom strategic turn-based bo
 
 ## Current Phase
 
-Local + online playable, deployed, and themed. All roadmap phases through Phase 5 are complete.
+Local + online playable, fully deployed, and themed. All roadmap phases through Phase 5 are complete; Phase 6 (identity & accounts, Supabase) is done.
 
-**Active effort: Phase 6 — identity & accounts.** The milestone-based plan (M6.1–M6.3), locked decisions, verified evidence, and Phase C (Supabase accounts) direction live in `docs/ACCOUNTS.md`. Resume from the first unchecked milestone there; mark it `[x]` and commit per milestone. Deployment runbook: `docs/DEPLOYMENT.md`.
+**Hosting:** client on Vercel (`https://outwit-one.vercel.app`, auto-deploys on push), WebSocket server on **Northflank** (`https://http--outwit-server--clnlhfn4kk5l.code.run`, free always-on Sandbox plan). Render (`outwit-server.onrender.com`) remains configured as a monthly-reset fallback. Full runbook, env vars, migration notes, and the bandwidth budget live in `docs/DEPLOYMENT.md`.
 
 - Pages and routing are in place.
 - State management is Zustand.
