@@ -6,3 +6,4 @@ export * from './setup';
 export * from './moves';
 export * from './rules';
 export * from './notation';
+export * from './replay';

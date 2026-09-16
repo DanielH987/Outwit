@@ -153,6 +153,138 @@ describe('GamePage local play', () => {
   });
 });
 
+describe('GamePage replay (reviewing move history)', () => {
+  beforeEach(() => {
+    resetStore();
+  });
+
+  /** Play two moves: white a9→a4, black i2→i7. */
+  async function playTwoMoves(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(screen.getByRole('gridcell', { name: 'tile a9' }));
+    await user.click(screen.getByRole('gridcell', { name: 'tile a4' }));
+    await user.click(screen.getByRole('gridcell', { name: 'tile i2' }));
+    await user.click(screen.getByRole('gridcell', { name: 'tile i7' }));
+  }
+
+  /** Which board coordinate a chip is rendered at (chips live in a layer, not tiles). */
+  const chipPosition = (chipId: string) =>
+    screen.getByTestId(`chip-${chipId}`).getAttribute('data-position');
+
+  it('clicking a history move enters replay and shows the board as it was', async () => {
+    const user = userEvent.setup();
+    renderGamePage();
+    await playTwoMoves(user);
+
+    // Live board: white-1 is at a4, black-9 has moved to i7.
+    expect(chipPosition('white-1')).toBe('a4');
+    expect(chipPosition('black-9')).toBe('i7');
+
+    // Click the first move (white a9→a4): black-9 should be back at i2.
+    await user.click(screen.getByTestId('history-move-0'));
+
+    expect(screen.getByTestId('replay-controls')).toBeInTheDocument();
+    expect(screen.getByTestId('replay-label')).toHaveTextContent('Move 1 of 2');
+    expect(chipPosition('black-9')).toBe('i2');
+  });
+
+  it('does not change the actual game state while replaying', async () => {
+    const user = userEvent.setup();
+    renderGamePage();
+    await playTwoMoves(user);
+
+    const before = JSON.stringify(useLocalGameStore.getState().state);
+    const historyLength = useLocalGameStore.getState().moveHistory.length;
+
+    await user.click(screen.getByTestId('history-move-0'));
+    await user.click(screen.getByRole('button', { name: 'Previous move' }));
+    await user.click(screen.getByRole('button', { name: 'Next move' }));
+
+    // Store untouched: same board, same history, still Black to move.
+    expect(JSON.stringify(useLocalGameStore.getState().state)).toBe(before);
+    expect(useLocalGameStore.getState().moveHistory).toHaveLength(historyLength);
+    expect(useLocalGameStore.getState().state.sideToMove).toBe('white');
+  });
+
+  it('blocks board clicks while reviewing', async () => {
+    const user = userEvent.setup();
+    renderGamePage();
+    await playTwoMoves(user);
+
+    await user.click(screen.getByTestId('history-move-0'));
+    const stateBefore = JSON.stringify(useLocalGameStore.getState().state);
+
+    // Try to select and move a chip while in replay — nothing should happen.
+    await user.click(screen.getByRole('gridcell', { name: 'tile a4' }));
+    expect(useLocalGameStore.getState().selectedChipId).toBeNull();
+    expect(JSON.stringify(useLocalGameStore.getState().state)).toBe(stateBefore);
+  });
+
+  it('steps backward to the starting position and forward again', async () => {
+    const user = userEvent.setup();
+    renderGamePage();
+    await playTwoMoves(user);
+    await user.click(screen.getByTestId('history-move-0'));
+
+    await user.click(screen.getByRole('button', { name: 'First move' }));
+    expect(screen.getByTestId('replay-label')).toHaveTextContent('Starting position');
+    // Both chips back where they started.
+    expect(chipPosition('white-1')).toBe('a9');
+    expect(chipPosition('black-9')).toBe('i2');
+
+    await user.click(screen.getByRole('button', { name: 'Next move' }));
+    expect(chipPosition('white-1')).toBe('a4');
+
+    await user.click(screen.getByRole('button', { name: 'Latest move' }));
+    expect(screen.getByTestId('replay-label')).toHaveTextContent('Move 2 of 2');
+    expect(chipPosition('black-9')).toBe('i7');
+  });
+
+  it('exits replay and restores the live position (and controls)', async () => {
+    const user = userEvent.setup();
+    renderGamePage();
+    await playTwoMoves(user);
+    await user.click(screen.getByTestId('history-move-0'));
+
+    await user.click(screen.getByRole('button', { name: 'Exit' }));
+
+    expect(screen.queryByTestId('replay-controls')).not.toBeInTheDocument();
+    expect(chipPosition('black-9')).toBe('i7'); // live again
+    // Game controls are back.
+    expect(screen.getByRole('button', { name: /White resigns/i })).toBeInTheDocument();
+  });
+
+  it('leaves replay when the game is reset', async () => {
+    const user = userEvent.setup();
+    renderGamePage();
+    await playTwoMoves(user);
+    await user.click(screen.getByTestId('history-move-0'));
+    expect(screen.getByTestId('replay-controls')).toBeInTheDocument();
+
+    // Exit replay to reach the controls, then reset.
+    await user.click(screen.getByRole('button', { name: 'Exit' }));
+    await user.click(screen.getByRole('button', { name: /New local game/i }));
+
+    expect(screen.queryByTestId('replay-controls')).not.toBeInTheDocument();
+    expect(useLocalGameStore.getState().moveHistory).toHaveLength(0);
+  });
+
+  it('supports arrow-key navigation in a real game', async () => {
+    const user = userEvent.setup();
+    renderGamePage();
+    await playTwoMoves(user);
+    await user.click(screen.getByTestId('history-move-0'));
+
+    await user.keyboard('{ArrowLeft}');
+    expect(screen.getByTestId('replay-label')).toHaveTextContent('Starting position');
+
+    await user.keyboard('{ArrowRight}');
+    expect(screen.getByTestId('replay-label')).toHaveTextContent('Move 1 of 2');
+
+    await user.keyboard('{Escape}');
+    expect(screen.queryByTestId('replay-controls')).not.toBeInTheDocument();
+  });
+});
+
 describe('GamePage end-of-game dialog', () => {
   beforeEach(() => {
     resetStore();

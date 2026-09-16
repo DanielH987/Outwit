@@ -7,8 +7,9 @@ import { GameClocks } from '@/components/GameClocks';
 import { GameControls } from '@/components/GameControls';
 import { GameOverDialog } from '@/components/GameOverDialog';
 import { MoveHistoryPanel } from '@/components/MoveHistoryPanel';
+import { ReplayControls } from '@/components/ReplayControls';
 import { WaitingForOpponent } from '@/components/WaitingForOpponent';
-import { chipAt, getLegalMoves, samePosition } from '@/engine';
+import { boardAtMove, chipAt, getLegalMoves, samePosition } from '@/engine';
 import { useGameStore, useLocalGameStore } from '@/stores';
 import type { MoveRecord } from '@/stores/localGameStore';
 import { useWebSocketActions } from '@/hooks/useWebSocketActions';
@@ -25,6 +26,37 @@ function useBoardHighlight(moveHistory: MoveRecord[]) {
   const [hovered, setHovered] = useState<MoveRecord | null>(null);
   const latest = moveHistory.length > 0 ? moveHistory[moveHistory.length - 1] : null;
   return { highlight: hovered ?? latest, onHighlight: setHovered };
+}
+
+/**
+ * Review mode state. `-1` means "before any move"; otherwise the index of the
+ * move being viewed. `null` means replay is off (live position).
+ *
+ * Replay is purely a client-side view: it reconstructs historical positions by
+ * replaying the move history locally and never sends anything or affects the
+ * game. Board input is blocked while reviewing.
+ */
+function useReplay(moveHistory: MoveRecord[]) {
+  const [index, setIndex] = useState<number | null>(null);
+
+  // Leaving/shrinking the history (new game, reset) exits replay.
+  useEffect(() => {
+    setIndex((current) => {
+      if (current === null) return null;
+      if (moveHistory.length === 0) return null;
+      return Math.min(current, moveHistory.length - 1);
+    });
+  }, [moveHistory.length]);
+
+  const isReplaying = index !== null;
+
+  return {
+    isReplaying,
+    index,
+    start: () => setIndex(Math.max(0, moveHistory.length - 1)),
+    exit: () => setIndex(null),
+    goTo: (next: number) => setIndex(Math.max(-1, Math.min(next, moveHistory.length - 1))),
+  };
 }
 
 /**
@@ -49,8 +81,24 @@ function LocalGameView() {
     reset,
   } = useLocalGameStore();
 
+  const { highlight: hoveredMove, onHighlight } = useBoardHighlight(moveHistory);
+  const replay = useReplay(moveHistory);
+
+  // While reviewing, the board shows a reconstructed past position and input is
+  // disabled — nothing about the real game changes.
+  const viewedState = useMemo(
+    () => (replay.isReplaying ? boardAtMove(moveHistory, replay.index!) : state),
+    [replay.isReplaying, replay.index, moveHistory, state]
+  );
+  const viewedMove = replay.isReplaying
+    ? replay.index! >= 0
+      ? moveHistory[replay.index!]
+      : null
+    : hoveredMove;
+
   const handleTileClick = useCallback(
     (pos: Position) => {
+      if (replay.isReplaying) return; // reviewing history; ignore board clicks
       if (result.status !== 'in-progress') return;
       const chip = chipAt(state, pos);
 
@@ -65,10 +113,8 @@ function LocalGameView() {
       }
       deselect();
     },
-    [result, state, selectedChipId, legalMoves, selectChip, moveSelected, deselect]
+    [replay.isReplaying, result, state, selectedChipId, legalMoves, selectChip, moveSelected, deselect]
   );
-
-  const { highlight: lastMove, onHighlight } = useBoardHighlight(moveHistory);
 
   // Show the end dialog once per finished game, until dismissed. Resetting the
   // game (or starting another) re-arms it for the next finish.
@@ -81,7 +127,7 @@ function LocalGameView() {
 
   return (
     <main className="flex flex-1 flex-col lg:h-dvh lg:flex-row lg:items-stretch lg:overflow-hidden">
-      {showGameOver && (
+      {showGameOver && !replay.isReplaying && (
         <GameOverDialog
           result={result}
           primaryLabel="Play again"
@@ -94,11 +140,11 @@ function LocalGameView() {
       <div className="flex flex-1 items-start justify-center px-0 py-2 lg:items-center lg:px-3">
         <div className="w-full max-w-[min(100%,calc((100dvh-15rem)*0.9))] lg:max-w-[min(100%,calc((100dvh-1.5rem)*0.9))]">
           <Board
-            state={state}
-            selectedChipId={selectedChipId}
-            legalMoves={legalMoves}
+            state={viewedState}
+            selectedChipId={replay.isReplaying ? null : selectedChipId}
+            legalMoves={replay.isReplaying ? [] : legalMoves}
             onTileClick={handleTileClick}
-            lastMove={lastMove}
+            lastMove={viewedMove}
           />
         </div>
       </div>
@@ -116,18 +162,33 @@ function LocalGameView() {
         <p className="hidden text-sm text-taupe lg:block">
           Pass-and-play. Standard chips slide as far as possible; the power chip (★) may stop anywhere.
         </p>
-        <GameClocks />
-        <GameControls
-          result={result}
-          sideToMove={state.sideToMove}
-          pendingDrawOfferFrom={pendingDrawOfferFrom}
-          onResign={resign}
-          onOfferDraw={offerDraw}
-          onAcceptDraw={acceptDraw}
-          onDeclineDraw={declineDraw}
-          onReset={reset}
+        {!replay.isReplaying && <GameClocks />}
+        {replay.isReplaying ? (
+          <ReplayControls
+            current={replay.index!}
+            total={moveHistory.length}
+            onChange={replay.goTo}
+            onExit={replay.exit}
+          />
+        ) : (
+          <GameControls
+            result={result}
+            sideToMove={state.sideToMove}
+            pendingDrawOfferFrom={pendingDrawOfferFrom}
+            onResign={resign}
+            onOfferDraw={offerDraw}
+            onAcceptDraw={acceptDraw}
+            onDeclineDraw={declineDraw}
+            onReset={reset}
+          />
+        )}
+        <MoveHistoryPanel
+          history={moveHistory}
+          onHighlight={onHighlight}
+          highlightedMove={viewedMove}
+          currentMoveIndex={replay.isReplaying ? replay.index : null}
+          onSelectMove={replay.goTo}
         />
-        <MoveHistoryPanel history={moveHistory} onHighlight={onHighlight} highlightedMove={lastMove} />
       </aside>
     </main>
   );
@@ -175,8 +236,25 @@ function OnlineGameView({ roomId }: { roomId: string }) {
     return chip ? { chip, legal: getLegalMoves(boardState, chip.id) } : null;
   }, [boardState, selectedChipId]);
 
+  // Stable reference so hooks below don't invalidate every render.
+  const history = useMemo(() => gameState?.moveHistory ?? [], [gameState]);
+  const { highlight: hoveredMove, onHighlight } = useBoardHighlight(history);
+  const replay = useReplay(history);
+
+  // Reviewing reconstructs a past position locally; the server state is untouched.
+  const viewedState = useMemo(
+    () => (replay.isReplaying && boardState ? boardAtMove(history, replay.index!) : boardState),
+    [replay.isReplaying, replay.index, history, boardState]
+  );
+  const viewedMove = replay.isReplaying
+    ? replay.index! >= 0
+      ? history[replay.index!]
+      : null
+    : hoveredMove;
+
   const handleTileClick = useCallback(
     (pos: Position) => {
+      if (replay.isReplaying) return; // reviewing history; ignore board clicks
       if (!gameState || gameState.result.status !== 'in-progress') return;
       if (!mySide || mySide !== gameState.board.sideToMove) return;
       const chip = chipAt(boardState!, pos);
@@ -192,10 +270,8 @@ function OnlineGameView({ roomId }: { roomId: string }) {
       }
       useGameStore.getState().setSelectedChip(null);
     },
-    [boardState, gameState, mySide, selected, makeMove, roomId]
+    [replay.isReplaying, boardState, gameState, mySide, selected, makeMove, roomId]
   );
-
-  const { highlight: lastMove, onHighlight } = useBoardHighlight(gameState?.moveHistory ?? []);
 
   const opponent = gameState?.players.find((p) => p.userId !== userId) ?? null;
 
@@ -216,7 +292,7 @@ function OnlineGameView({ roomId }: { roomId: string }) {
 
   return (
     <main className="flex flex-1 flex-col lg:h-dvh lg:flex-row lg:items-stretch lg:overflow-hidden">
-      {showGameOver && (
+      {showGameOver && !replay.isReplaying && (
         <GameOverDialog
           result={gameState.result}
           perspective={mySide}
@@ -229,11 +305,11 @@ function OnlineGameView({ roomId }: { roomId: string }) {
       <div className="flex flex-1 items-start justify-center px-0 py-2 lg:items-center lg:px-3">
         <div className="w-full max-w-[min(100%,calc((100dvh-16rem)*0.9))] lg:max-w-[min(100%,calc((100dvh-1.5rem)*0.9))]">
           <Board
-            state={boardState!}
-            selectedChipId={selectedChipId}
-            legalMoves={selected?.legal ?? []}
+            state={viewedState!}
+            selectedChipId={replay.isReplaying ? null : selectedChipId}
+            legalMoves={replay.isReplaying ? [] : selected?.legal ?? []}
             onTileClick={handleTileClick}
-            lastMove={lastMove}
+            lastMove={viewedMove}
           />
         </div>
       </div>
@@ -268,7 +344,15 @@ function OnlineGameView({ roomId }: { roomId: string }) {
             {lastError}
           </p>
         )}
-        <div className="rounded-xl bg-surface p-4 text-sm text-parchment shadow-lg shadow-black/30">
+        {replay.isReplaying ? (
+          <ReplayControls
+            current={replay.index!}
+            total={history.length}
+            onChange={replay.goTo}
+            onExit={replay.exit}
+          />
+        ) : (
+          <div className="rounded-xl bg-surface p-4 text-sm text-parchment shadow-lg shadow-black/30">
           <p className="mb-2 font-semibold">Players</p>
           <ul className="space-y-1 text-sm text-parchment/90">
             {gameState.players.map((p) => (
@@ -318,8 +402,15 @@ function OnlineGameView({ roomId }: { roomId: string }) {
               </button>
             )}
           </div>
-        </div>
-        <MoveHistoryPanel history={gameState.moveHistory} onHighlight={onHighlight} highlightedMove={lastMove} />
+          </div>
+        )}
+        <MoveHistoryPanel
+          history={history}
+          onHighlight={onHighlight}
+          highlightedMove={viewedMove}
+          currentMoveIndex={replay.isReplaying ? replay.index : null}
+          onSelectMove={replay.goTo}
+        />
         <ChatPanel roomId={roomId} sendChat={sendChat} mySide={mySide} />
       </aside>
     </main>
