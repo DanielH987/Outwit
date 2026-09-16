@@ -1,15 +1,16 @@
 # Outwit — Deployment Plan
 
-**Status:** Implemented through M5 (scripted smoke). M1–M4 complete and pushed; M5's automated checks pass; remaining M5 items are interactive human checks; M6 optional. This document is the handoff spec for the deployment phase; any agent should be able to resume from the current milestone without prior chat context.
+**Status:** Implemented and fully deployed. Client on Vercel, WebSocket server on **Northflank** (migrated from Render 2026-09-16). This document is the handoff spec; any agent should be able to resume without prior chat context.
 
 > **Next phase:** identity & accounts (named guests, invite links, persistent device identity; later Supabase accounts). See [`docs/ACCOUNTS.md`](ACCOUNTS.md).
 
 ## Handoff Summary (read first)
 
-- **Live frontend:** `https://outwit-one.vercel.app` (Vercel project `outwit`, CLI-linked at `.vercel/project.json`).
-- **Live server:** `https://outwit-server.onrender.com` (Render service `outwit-server`, id `srv-dajpo9m7bikc73d1ge8g`, free plan, Oregon, `ws` path `/ws`, health `/`). Free tier sleeps after ~15 min idle.
-- **Env wiring:** `VITE_WS_URL=wss://outwit-server.onrender.com` on Vercel (production); server on Render reads `PORT=10000`.
-- **Remaining work:** M5 interactive human checks (two-browser game, reconnect, forfeit-on-disconnect) and optional M6 (auto-deploy via Render GitHub App, custom domain, keep-alive, persistence).
+- **Live frontend:** `https://outwit-one.vercel.app` (Vercel project `outwit`, CLI-linked at `.vercel/project.json`). Auto-deploys on push to `main`.
+- **Live server:** `https://http--outwit-server--clnlhfn4kk5l.code.run` (Northflank project `outwit`, service `outwit-server`, free **Developer Sandbox** plan `nf-compute-20` = 0.2 vCPU / 512 MB, region `us-central`, container port 3001, WS path `/ws`, health `/`). **Always-on — no sleeping and no cold start**, unlike Render.
+- **Env wiring:** `VITE_WS_URL=wss://http--outwit-server--clnlhfn4kk5l.code.run` on Vercel (production, build-time); Northflank injects its own `PORT`; runtime env has `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `OUTWIT_FORFEIT_SECONDS=60`.
+- **Fallback host:** the Render service (`srv-dajpo9m7bikc73d1ge8g`, `outwit-server.onrender.com`) is **left configured**. Its free bandwidth resets on the 1st of each month; switching back is one `VITE_WS_URL` change plus a Vercel redeploy.
+- **Remaining work:** optional M6 (custom domain, auto-deploy wiring is done; room persistence; time controls).
 
 **How to resume:** find the first unchecked milestone below; implement; verify with that milestone's checks; update checkbox; commit with a milestone message. Work on `main`.
 
@@ -56,14 +57,14 @@ Browser ── HTTPS ──▶ Vercel (static Vite build, SPA rewrites)
 
 | Variable | Where | Value | Notes |
 | --- | --- | --- | --- |
-| `VITE_WS_URL` | Vercel, production | `wss://outwit-server.onrender.com` | Baked in at build time; **no** trailing `/ws` (client appends it). Requires redeploy to take effect. |
+| `VITE_WS_URL` | Vercel, production | `wss://http--outwit-server--clnlhfn4kk5l.code.run` | Baked in at build time; **no** trailing `/ws` (client appends it). Requires redeploy to take effect. |
 | `VITE_SUPABASE_URL` | Vercel, production | `https://hqgamvpcowjjgxkchtzu.supabase.co` | Client auth + match history (Phase C). Baked in at build time. |
 | `VITE_SUPABASE_ANON_KEY` | Vercel, production | anon JWT | Public by design (ships in the bundle). Never use the service-role key here. |
-| `SUPABASE_URL` | Render | `https://hqgamvpcowjjgxkchtzu.supabase.co` | Enables JWT verification + match recording; optional (server runs guest-only without it). |
-| `SUPABASE_SERVICE_ROLE_KEY` | Render | service-role JWT | **Secret.** Server-only; grants write access to `matches`. Set via the Render API — `render services update` cannot set env vars. |
-| `OUTWIT_FORFEIT_SECONDS` | Render (optional) | unset → code default `30` | Disconnect-forfeit grace period. Not set on Render; the code default (30s) applies. chess.com scales this with the clock (10% of base time, 30s–3m); Outwit has no clock pressure, so it uses their 30s minimum. |
-| `OUTWIT_ROOM_TTL_SECONDS` | Render (optional) | `1800` | How long an abandoned room (no connected clients) is kept for reconnects before GC. Defaults to 1800 (30 min). |
-| `OUTWIT_PORT` | local only | e.g. `3001` | Optional local port override. On Render, the server must use the platform-provided `PORT`. |
+| `SUPABASE_URL` | Northflank | `https://hqgamvpcowjjgxkchtzu.supabase.co` | Enables JWT verification + match recording. |
+| `SUPABASE_SERVICE_ROLE_KEY` | Northflank | service-role JWT | **Secret.** Server-only; grants write access to `matches`. |
+| `OUTWIT_FORFEIT_SECONDS` | Northflank | `60` | Disconnect-forfeit grace period. Code default is 30s; Northflank sets 60. |
+| `OUTWIT_ROOM_TTL_SECONDS` | either host (optional) | `1800` | How long an abandoned room (no connected clients) is kept for reconnects before GC. Defaults to 1800 (30 min). |
+| `OUTWIT_PORT` / `PORT` | local only | e.g. `3001` | Optional local port override. Both hosts inject `PORT`; the server reads `PORT` first. |
 
 ## Bandwidth Budget (measured 2026-09-15)
 
@@ -297,11 +298,42 @@ M1 implementation notes: `src/services/websocket.ts` normalizes `VITE_WS_URL` (s
 
 ### M6 — Optional Polish
 
-- [x] Auto-deploy: Render auto-deploys on every push to `main` (enabled by default on the service). Vercel remains CLI-driven (`npx vercel@latest --prod --yes`) unless the repo is connected to the Vercel project.
-- [ ] Custom domain (if desired), configured in Vercel and optionally Render.
-- [ ] Keep-alive ping or paid instance to reduce Render free-tier cold starts (a paid instance would also stop rooms being dropped when the service sleeps).
-- [ ] Room persistence (e.g. Upstash Redis) — separate effort; see `docs/ACCOUNTS.md` Phase C notes.
+- [x] Auto-deploy: **Render** rebuilds on pushes touching `server/`, `src/engine/`, `src/types/`, or `package*.json` (build filters set 2026-09-16); **Vercel** auto-deploys on every push to `main` (GitHub link fixed 2026-09-16). Manual CLI deploys still work.
+- [ ] Custom domain (if desired), configured in Vercel and optionally Northflank.
+- [x] Keep-alive / no cold starts: replaced Render with **Northflank Developer Sandbox** (`nf-compute-20`, always-on) on 2026-09-16. See the migration note below.
+- [ ] Room persistence (e.g. Upstash Redis) — rooms are still in-memory, so a restart/deploy drops live games. Separate effort; see `docs/ACCOUNTS.md` Phase C notes.
 - [ ] Clock/time-control messages once a time-control rule exists.
+
+## Server Migration: Render → Northflank (2026-09-16)
+
+Render's free tier suspended the service after the workspace hit its **5 GB/month outbound bandwidth** limit (root cause: the infinite join/broadcast loop bug; see the Bandwidth Budget section). Rather than wait for the monthly reset with 30–60 s cold starts, the server moved to **Northflank**, whose free Developer Sandbox is **always-on**.
+
+**What was created**
+
+- Project `outwit` (region `us-central`), service `outwit-server`, type **combined** (build + deploy), plan `nf-compute-20` (0.2 vCPU / 512 MB).
+- Build: Dockerfile at `/Dockerfile` (multi-stage: esbuild-bundles the server, runtime image has production deps only). Committed as `37096e7` with `.dockerignore`.
+- Networking: container port `3001`, **public**, protocol HTTP → public URL `https://http--outwit-server--clnlhfn4kk5l.code.run` (DNS `http--outwit-server--clnlhfn4kk5l.code.run`), plus a readiness probe `GET /` every 15 s.
+- Runtime env: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `OUTWIT_FORFEIT_SECONDS=60`.
+- Vercel: `VITE_WS_URL` set to the Northflank `wss://` URL (production) and the client redeployed.
+
+**Verified after cutover** (two real browsers against production): white/black seat assignment, display names, a move syncing to the opponent, chat delivery, resignation → correct per-perspective headlines ("You lost" / "You won"), and the match recorded in Supabase with the right names/result. Server `/stats` responded normally.
+
+**Notes for future agents**
+
+- The CLI is `northflank` (`npm i -g @northflank/cli`), logged in via browser; config lives at `~/.northflank/config.json`. `northflank get service` is interactive-only — read details via `northflank list services --project outwit --output json`, or hit `https://api.northflank.com/v1/projects/outwit/services/outwit-server` with the CLI token.
+- The CLI **requires `--project`** for project-scoped commands, and the create body requires a `successThreshold` on readiness probes and a top-level `region`/`clusterId` when creating a project.
+- Northflank requires a **payment method on file** before any resource can be created, even on the free plan (identity verification; the card is not charged for free-tier usage).
+- There is **no hard spend cap** on Northflank. Controls available: the free plan's fixed allowances (2 services, `nf-compute-20`), **billing alerts** (notifications), and **billing thresholds** ($50/$100/$250/$500 — these *invoice* when reached, they do not block spending). The effective safety net is the plan: the service is pinned to the free `nf-compute-20` deployment plan, so cost stays $0 unless the plan is changed.
+- To add a custom domain: Northflank → project → service → port → add domain, then point DNS at it.
+
+**Rollback to Render** (still configured, free bandwidth resets monthly):
+
+```bash
+printf 'wss://outwit-server.onrender.com' | npx vercel@latest env add VITE_WS_URL production --force --type config
+npx vercel@latest --prod --yes
+```
+
+Then resume the Render service from the dashboard (`https://dashboard.render.com/web/srv-dajpo9m7bikc73d1ge8g`) — the card/billing block there is separate from Northflank.
 
 ## CLI Reference
 
