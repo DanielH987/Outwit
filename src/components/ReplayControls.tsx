@@ -16,6 +16,51 @@ interface ReplayControlsProps {
   onExit: () => void;
 }
 
+function ChevronIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M15 6l-6 6 6 6" />
+    </svg>
+  );
+}
+
+/** Chevron with a bar: jump to the very first / very latest position. */
+function SkipIcon({ toEnd, className }: { toEnd?: boolean; className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      {toEnd ? (
+        <>
+          <path d="M7 6l6 6-6 6" />
+          <path d="M17 6v12" />
+        </>
+      ) : (
+        <>
+          <path d="M17 6l-6 6 6 6" />
+          <path d="M7 6v12" />
+        </>
+      )}
+    </svg>
+  );
+}
+
 function ControlButton({
   label,
   onClick,
@@ -90,16 +135,16 @@ export function ReplayControls({ current, total, onChange, onExit }: ReplayContr
 
       <div className="flex gap-1.5">
         <ControlButton label="First move" onClick={() => onChange(-1)} disabled={atStart}>
-          ⏮
+          <SkipIcon className="h-4 w-4" />
         </ControlButton>
         <ControlButton label="Previous move" onClick={() => onChange(Math.max(-1, current - 1))} disabled={atStart}>
-          ◀
+          <ChevronIcon className="h-4 w-4" />
         </ControlButton>
         <ControlButton label="Next move" onClick={() => onChange(Math.min(total - 1, current + 1))} disabled={atEnd}>
-          ▶
+          <ChevronIcon className="h-4 w-4 rotate-180" />
         </ControlButton>
         <ControlButton label="Latest move" onClick={() => onChange(total - 1)} disabled={atEnd}>
-          ⏭
+          <SkipIcon toEnd className="h-4 w-4" />
         </ControlButton>
       </div>
 
