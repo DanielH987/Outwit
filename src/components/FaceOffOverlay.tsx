@@ -9,7 +9,7 @@ interface FaceOffPlayer {
   userId: string;
   username: string | null;
   countryCode?: string | null;
-  side: 'white' | 'black';
+  side: 'white' | 'black' | null;
 }
 
 interface FaceOffOverlayProps {
