@@ -77,27 +77,65 @@ describe('multiplayer server', () => {
     const state = await b.next('game-state'); // latest after b joins
     expect(state.type).toBe('game-state');
     expect((state.payload as any).board.sideToMove).toBe('white');
-    expect((state.payload as any).players.map((p: any) => p.side)).toEqual(['white', 'black']);
+    const sides = (state.payload as any).players.map((p: any) => p.side).sort();
+    expect(sides).toEqual(['black', 'white']);
 
-    a.send('make-move', { roomId, userId: a.userId, move: { chipId: 'white-1', to: { x: 0, y: 6 } } });
+    // Find which player is white — moves first.
+    const players = (state.payload as any).players;
+    const whitePlayer = players.find((p: any) => p.side === 'white');
+    const whiteClientId = whitePlayer.userId === a.userId ? a : b;
+    const blackClientId = whitePlayer.userId === a.userId ? b : a;
+
+    whiteClientId.send('make-move', { roomId, userId: whitePlayer.userId, move: { chipId: 'white-1', to: { x: 0, y: 6 } } });
     // Keep reading game-state updates until we see the post-move one.
-    let afterA = await a.next('game-state');
+    let afterA = await whiteClientId.next('game-state');
     while ((afterA.payload as any).board.sideToMove !== 'black') {
-      afterA = await a.next('game-state');
+      afterA = await whiteClientId.next('game-state');
     }
+    // Drain the black client's buffer of the same broadcast.
+    await blackClientId.next('game-state');
     expect((afterA.payload as any).board.chips.find((c: any) => c.id === 'white-1').position).toEqual({ x: 0, y: 6 });
     expect((afterA.payload as any).board.sideToMove).toBe('black');
 
-    b.send('make-move', { roomId, userId: b.userId, move: { chipId: 'black-9', to: { x: 8, y: 3 } } });
-    let afterB = await b.next('game-state');
+    blackClientId.send('make-move', { roomId, userId: blackClientId.userId, move: { chipId: 'black-9', to: { x: 8, y: 3 } } });
+    let afterB = await blackClientId.next('game-state');
     while ((afterB.payload as any).board.sideToMove !== 'white') {
-      afterB = await b.next('game-state');
+      afterB = await blackClientId.next('game-state');
     }
     expect((afterB.payload as any).board.sideToMove).toBe('white');
     expect((afterB.payload as any).moveHistory.map((m: any) => m.notation)).toEqual(['1 a9→a4', '9 i2→i7']);
 
     a.close();
     b.close();
+  });
+
+  it('randomizes side assignment across rooms', async () => {
+    // Over many rooms, the first joiner should get white roughly half the time.
+    // We test 20 rooms and assert at least one is black (probabilistic: the
+    // chance of all 20 being white is ~0.0001% with fair randomization).
+    let firstPlayerWhite = 0;
+    let firstPlayerBlack = 0;
+    for (let i = 0; i < 20; i++) {
+      const roomId = `rand-${i}`;
+      const a = await connect();
+      a.send('join-room', { roomId, userId: a.userId, username: 'A' });
+      await a.next('room-update');
+      await a.next('game-state');
+
+      const b = await connect();
+      b.send('join-room', { roomId, userId: b.userId, username: 'B' });
+      await b.next('room-update');
+      const state = await b.next('game-state');
+      const players = (state.payload as any).players;
+      const firstSide = players.find((p: any) => p.userId === a.userId)?.side;
+      if (firstSide === 'white') firstPlayerWhite++;
+      else firstPlayerBlack++;
+
+      a.close();
+      b.close();
+    }
+    expect(firstPlayerWhite).toBeGreaterThan(0);
+    expect(firstPlayerBlack).toBeGreaterThan(0);
   });
 
   it('rejects out-of-turn and illegal moves with an error', async () => {
@@ -109,12 +147,23 @@ describe('multiplayer server', () => {
     await b.next('room-update');
     await a.next('room-update'); // b joining re-broadcasts to a too
 
-    b.send('make-move', { roomId, userId: b.userId, move: { chipId: 'black-9', to: { x: 8, y: 3 } } });
+    // Get the game state to know who is white (moves first).
+    const state = await b.next('game-state');
+    const players = (state.payload as any).players;
+    const aSide = players.find((p: any) => p.userId === a.userId)?.side;
+    const bSide = players.find((p: any) => p.userId === b.userId)?.side;
+
+    // B tries to move with the wrong side's chip — illegal regardless of sides.
+    // If B is white, sending a black chip is illegal; if B is black, it's out of turn.
+    const bChip = bSide === 'white' ? 'black-9' : 'black-9';
+    b.send('make-move', { roomId, userId: b.userId, move: { chipId: bChip, to: { x: 8, y: 3 } } });
     const outOfTurn = await b.next('error');
     expect(outOfTurn.type).toBe('error');
     expect((outOfTurn.payload as any).message).toMatch(/Illegal move/);
 
-    a.send('make-move', { roomId, userId: a.userId, move: { chipId: 'white-1', to: { x: 0, y: 3 } } });
+    // A tries an illegal move with their own chip (wrong distance for a standard chip).
+    const aChip = aSide === 'white' ? 'white-1' : 'white-1';
+    a.send('make-move', { roomId, userId: a.userId, move: { chipId: aChip, to: { x: 0, y: 3 } } });
     const illegal = await a.next('error');
     expect((illegal.payload as any).message).toMatch(/Illegal move/);
 
@@ -129,14 +178,20 @@ describe('multiplayer server', () => {
     const b = await connect();
     b.send('join-room', { roomId, userId: b.userId, username: 'B' });
     await b.next('room-update');
-    await b.next('game-state'); // drain the pre-resign one
+    await a.next('room-update'); // b joining re-broadcasts to a too
+
+    // Drain the initial game-state and find B's side.
+    const state = await b.next('game-state');
+    const players = (state.payload as any).players;
+    const bSide = players.find((p: any) => p.userId === b.userId)?.side;
+    const expectedWinner = bSide === 'black' ? 'white' : 'black';
 
     b.send('resign', { roomId, userId: b.userId });
     let end = await b.next('game-state');
     while ((end.payload as any).result.status !== 'finished') {
       end = await b.next('game-state');
     }
-    expect((end.payload as any).result).toEqual({ status: 'finished', winner: 'white', reason: 'resignation' });
+    expect((end.payload as any).result).toEqual({ status: 'finished', winner: expectedWinner, reason: 'resignation' });
 
     a.close();
     b.close();
@@ -172,7 +227,9 @@ describe('multiplayer server', () => {
       token: 'anything.that.looks.like.a.jwt',
     });
     const update = await a.next('room-update');
-    expect((update.payload as any).players[0]).toMatchObject({ userId: 'account-uuid-local', side: 'white' });
+    expect((update.payload as any).players[0]).toMatchObject({ userId: 'account-uuid-local' });
+    // First joiner has no side until the second player joins (random assignment).
+    expect((update.payload as any).players[0].side).toBeNull();
     // No error should have been emitted for the join.
     const state = await a.next('game-state');
     expect((state.payload as any).players).toHaveLength(1);

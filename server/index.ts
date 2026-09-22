@@ -341,10 +341,17 @@ function joinRoom(client: ClientInfo, payload: JoinRoomPayload, verifiedSub?: st
 
   client.userId = seatId;
   if (room.state.players.length === 0) {
-    room.state.players.push({ userId: seatId, username: client.username, countryCode: client.countryCode, side: 'white', connected: true });
+    // First player's side is undecided until the second player joins (random
+    // assignment). null side means "waiting for opponent".
+    room.state.players.push({ userId: seatId, username: client.username, countryCode: client.countryCode, side: null, connected: true });
     room.players.set(seatId, client);
   } else if (room.state.players.length === 1) {
-    room.state.players.push({ userId: seatId, username: client.username, countryCode: client.countryCode, side: 'black', connected: true });
+    // Randomize sides: 50% chance the first player gets white, 50% black.
+    const firstGetsWhite = Math.random() < 0.5;
+    const firstSide: PlayerId = firstGetsWhite ? 'white' : 'black';
+    const secondSide: PlayerId = firstGetsWhite ? 'black' : 'white';
+    room.state.players[0].side = firstSide;
+    room.state.players.push({ userId: seatId, username: client.username, countryCode: client.countryCode, side: secondSide, connected: true });
     room.players.set(seatId, client);
   } else {
     room.state.spectators.push({ userId: seatId, username: client.username, countryCode: client.countryCode, side: null, connected: true });

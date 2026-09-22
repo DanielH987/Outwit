@@ -50,7 +50,7 @@ export function WaitingForOpponent({ roomId }: WaitingForOpponentProps) {
       data-testid="waiting-for-opponent"
     >
       <p className="mb-1 font-semibold">Waiting for opponent</p>
-      <p className="mb-3 text-taupe">Share this link — the first to join plays White, the second Black.</p>
+      <p className="mb-3 text-taupe">Share this link — sides are assigned randomly when your opponent joins.</p>
 
       <div className="mb-2 flex items-center justify-center gap-1.5">
         <p className="text-center font-mono text-lg tracking-[0.25em] text-accent" data-testid="room-code">

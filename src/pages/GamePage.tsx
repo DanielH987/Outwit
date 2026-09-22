@@ -430,7 +430,7 @@ function OnlineGameView({ roomId }: { roomId: string }) {
                   aria-label={p.connected ? 'connected' : 'disconnected'}
                 />
                 <CountryFlag code={p.countryCode} className="text-base leading-none" />
-                {p.username ?? p.userId} — <span className="text-taupe">{p.side}</span>
+                {p.username ?? p.userId} — <span className="text-taupe">{p.side ?? 'waiting'}</span>
                 {p.userId === userId && <span className="text-accent">(you)</span>}
               </li>
             ))}
@@ -483,7 +483,7 @@ function OnlineGameView({ roomId }: { roomId: string }) {
                     aria-label={p.connected ? 'connected' : 'disconnected'}
                   />
                   <CountryFlag code={p.countryCode} className="text-base leading-none" />
-                  {p.username ?? p.userId} — <span className="text-taupe">{p.side}</span>
+                  {p.username ?? p.userId} — <span className="text-taupe">{p.side ?? 'waiting'}</span>
                   {p.userId === userId && <span className="text-accent">(you)</span>}
                 </li>
               ))}

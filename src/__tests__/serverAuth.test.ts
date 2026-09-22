@@ -117,7 +117,7 @@ describe('server token auth', () => {
       token,
     });
     const update = await client.nextBy('room-update');
-    expect((update.payload as any).players[0]).toMatchObject({ userId: 'account-uuid-1', side: 'white' });
+    expect((update.payload as any).players[0]).toMatchObject({ userId: 'account-uuid-1', side: null });
     client.closeNow();
   });
 
@@ -146,7 +146,7 @@ describe('server token auth', () => {
     const client = await connect();
     client.send('join-room', { roomId: 'auth-guest', userId: client.userId, username: 'Guest' });
     const update = await client.nextBy('room-update');
-    expect((update.payload as any).players[0]).toMatchObject({ userId: client.userId, side: 'white' });
+    expect((update.payload as any).players[0]).toMatchObject({ userId: client.userId, side: null });
     client.closeNow();
   });
 });

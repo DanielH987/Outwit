@@ -58,12 +58,16 @@ describe('disconnection-forfeit timer', () => {
     const live = await b.take('game-state', () => true);
     expect((live.payload as any).forfeit).toBeNull();
 
+    // Find A's side to know who disconnects and who wins.
+    const aSide = (live.payload as any).players.find((p: any) => p.userId === a.userId)?.side;
+    const expectedWinner = aSide === 'white' ? 'black' : 'white';
+
     // A disconnects; B should see a countdown, then win after the grace period.
     a.ws.close();
     // Server marks A disconnected, then after ~1s issues a forfeit.
     const disconnected = await b.take('game-state', (p) => p.players.find((x: any) => !x.connected) !== undefined);
     const forfeit = (disconnected.payload as any).forfeit;
-    expect(forfeit).toMatchObject({ side: 'white', graceSeconds: 1 });
+    expect(forfeit).toMatchObject({ side: aSide, graceSeconds: 1 });
     expect(typeof forfeit.deadline).toBe('number');
     expect(typeof forfeit.serverNow).toBe('number');
     expect(forfeit.deadline).toBeGreaterThanOrEqual(forfeit.serverNow);
@@ -72,7 +76,7 @@ describe('disconnection-forfeit timer', () => {
     const final = await b.take('game-state', (p) => p.result.status === 'finished');
     expect((final.payload as any).result).toEqual({
       status: 'finished',
-      winner: 'black',
+      winner: expectedWinner,
       reason: 'forfeit',
     });
     // The countdown is cleared once the game is over.

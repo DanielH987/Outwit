@@ -84,8 +84,12 @@ describe('multiplayer hardening', () => {
     b.send('join-room', { roomId, userId: b.userId, username: 'B' });
     await b.nextBy('room-update', (p) => p.players.length === 2);
 
+    // Find A's side from the game state.
+    const state = await b.nextBy('game-state');
+    const aSide = (state.payload as any).players.find((p: any) => p.userId === a.userId)?.side;
+
     a.send('offer-draw', { roomId, userId: a.userId });
-    await b.nextBy('game-state', (p) => p.pendingDrawFrom === 'white');
+    await b.nextBy('game-state', (p) => p.pendingDrawFrom === aSide);
 
     b.send('respond-draw', { roomId, userId: b.userId, accepted: true });
     const final = await b.nextBy('game-state', (p) => p.result.status === 'finished');
@@ -101,6 +105,10 @@ describe('multiplayer hardening', () => {
     const b = await connect();
     b.send('join-room', { roomId, userId: b.userId, username: 'B' });
     await b.nextBy('room-update', (p) => p.players.length === 2);
+
+    // Find B's side from the game state (randomized).
+    const state = await b.nextBy('game-state');
+    const bSide = (state.payload as any).players.find((p: any) => p.userId === b.userId)?.side;
 
     a.closeNow();
     await b.nextBy('room-update', (p) => p.players.find((pl: any) => pl.userId === a.userId)?.connected === false);
@@ -120,11 +128,11 @@ describe('multiplayer hardening', () => {
       update = await b2.nextBy('room-update');
     }
     const me = (update.payload as any).players.find((p: any) => p.userId === b.userId);
-    expect(me.side).toBe('black');
+    expect(me.side).toBe(bSide);
     expect(me.connected).toBe(true);
 
-    const state = await b2.nextBy('game-state');
-    expect((state.payload as any).board.sideToMove).toBe('white');
+    const state2 = await b2.nextBy('game-state');
+    expect((state2.payload as any).board.sideToMove).toBe('white');
 
     a2.closeNow();
     b2.closeNow();
@@ -156,6 +164,11 @@ describe('multiplayer hardening', () => {
     b1.send('join-room', { roomId, userId: b1.userId, username: 'B' });
     await b1.nextBy('room-update', (p) => p.players.length === 2);
 
+    // Find A's side from the game state.
+    const state = await b1.nextBy('game-state');
+    const aSide = (state.payload as any).players.find((p: any) => p.userId === a.userId)?.side;
+    const aChip = aSide === 'white' ? 'white-1' : 'black-9';
+
     // A second socket re-binds the same seat (tab refresh / reconnect).
     const b2 = await connect();
     b2.send('join-room', { roomId, userId: b1.userId, username: 'B' });
@@ -165,14 +178,15 @@ describe('multiplayer hardening', () => {
     b1.closeNow();
     await new Promise((r) => setTimeout(r, 200));
 
-    // White moves; the new socket must still receive broadcasts...
-    a.send('make-move', { roomId, userId: a.userId, move: { chipId: 'white-1', to: { x: 0, y: 6 } } });
-    const state = await b2.nextBy('game-state', (p) => p.board.chips.find((c: any) => c.id === 'white-1').position.y === 6);
-    expect((state.payload as any).board.chips.find((c: any) => c.id === 'white-1').position).toEqual({ x: 0, y: 6 });
+    // A moves; the new socket must still receive broadcasts...
+    a.send('make-move', { roomId, userId: a.userId, move: { chipId: aChip, to: aSide === 'white' ? { x: 0, y: 6 } : { x: 8, y: 3 } } });
+    const moveState = await b2.nextBy('game-state', (p) => p.board.chips.find((c: any) => c.id === aChip)?.position.y === (aSide === 'white' ? 6 : 3));
+    expect((moveState.payload as any).board.chips.find((c: any) => c.id === aChip).position).toEqual(aSide === 'white' ? { x: 0, y: 6 } : { x: 8, y: 3 });
 
     // ...and the replaced socket may not act.
-    b1.send('make-move', { roomId, userId: b1.userId, move: { chipId: 'black-1', to: { x: 0, y: 5 } } });
-    const blocked = await b2.nextBy('game-state', (p) => p.board.chips.find((c: any) => c.id === 'black-1').position.y === 5).then(() => false).catch(() => true);
+    const blockedChip = aSide === 'white' ? 'black-1' : 'white-1';
+    b1.send('make-move', { roomId, userId: b1.userId, move: { chipId: blockedChip, to: { x: 0, y: 5 } } });
+    const blocked = await b2.nextBy('game-state', (p) => p.board.chips.find((c: any) => c.id === blockedChip)?.position.y === 5).then(() => false).catch(() => true);
     expect(blocked).toBe(true);
 
     a.closeNow();
