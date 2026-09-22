@@ -142,6 +142,74 @@ curl -s https://outwit-server.onrender.com/stats
 
 Manual CLI deploys (`npx vercel@latest --prod --yes`) still work and are useful when you want to ship the client without a commit.
 
+## Development Workflow: Branch → Preview → Prod
+
+**Adopted 2026-09-22.** We use branch-based previews for both the client and
+database before anything touches production. The server is tested locally.
+
+### Why
+
+Migrations and deploys were going straight to `main` (auto-deploy to prod)
+with no safety net. The `moves` column migration landed in the production
+database before anyone tested it. Branch previews catch schema and UI issues
+before they affect real users.
+
+### Workflow
+
+```
+feature branch  →  Vercel preview URL  +  Supabase dev branch
+                        ↓                        ↓
+                   test the UI              test migrations
+                        ↓                        ↓
+                   merge to main  →  prod deploy (Vercel auto)
+                                     prod migration (supabase db push)
+```
+
+1. **Branch off `main`** for any non-trivial change:
+   ```bash
+   git checkout -b feat/my-feature
+   ```
+
+2. **Push the branch** — Vercel auto-creates a **preview deployment** with a
+   unique URL (e.g. `https://outwit-git-feat-my-feature.vercel.app`). No extra
+   config needed; PR previews are already enabled on the Vercel project.
+
+3. **Create a Supabase dev branch** to test database migrations safely:
+   ```bash
+   npx supabase db branch create <branch-name>
+   npx supabase db branch switch <branch-name>
+   npx supabase db push    # applies migrations to the dev branch, not prod
+   ```
+   Test schema changes against the dev branch's isolated database. When ready,
+   merge the branch back:
+   ```bash
+   npx supabase db branch switch main
+   npx supabase db branch merge <branch-name>
+   npx supabase db push    # applies to production
+   ```
+
+4. **Open a PR** on GitHub — Vercel posts the preview URL as a comment.
+   Review the UI, run `npm test && npm run lint` locally or in CI.
+
+5. **Merge to `main`** — Vercel auto-deploys to production
+   (`https://outwit-one.vercel.app`). Apply any pending Supabase migrations
+   to prod (`npx supabase db push`).
+
+6. **Server** — tested locally (`npm run server`); no separate dev deployment.
+   Northflank rebuilds on push to `main` if server-relevant files changed
+   (build filters already configured).
+
+### Notes
+
+- **Supabase branching** runs on the same Supabase project (no extra project
+  needed on the free tier). Each branch gets its own isolated database that
+  shadows the main schema.
+- **Vercel previews** are free (Hobby: 100 deploys/day) and get their own URL
+  per branch/PR. They use the same env vars as production by default.
+- **No staging environment** — at this stage, branch previews + local testing
+  are sufficient. Add a dedicated staging stack when a second developer joins
+  or real users are at risk.
+
 ## Verified Current State (as of 2026-09-14)
 
 Evidence gathered before planning; re-verify if stale.

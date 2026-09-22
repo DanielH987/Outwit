@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Board } from '@/components/Board';
 import { ChatPanel } from '@/components/ChatPanel';
 import { CountryFlag } from '@/components/CountryFlag';
+import { FaceOffOverlay } from '@/components/FaceOffOverlay';
 import { LeaveConfirmDialog, usePendingLeave } from '@/components/LeaveConfirmDialog';
 import { ForfeitCountdownBanner } from '@/components/ForfeitCountdownBanner';
 import { GameClocks } from '@/components/GameClocks';
@@ -195,6 +196,8 @@ function OnlineGameView({ roomId }: { roomId: string }) {
   const { connection, retry } = useWebSocket();
   const { userId } = useAuthStore();
   const [dismissedResultKey, setDismissedResultKey] = useState<string | null>(null);
+  const [showFaceOff, setShowFaceOff] = useState(false);
+  const faceOffShownRef = useRef(false);
   const navigate = useNavigate();
   const onlineLeave = usePendingLeave();
 
@@ -203,9 +206,36 @@ function OnlineGameView({ roomId }: { roomId: string }) {
     return () => leaveRoom(roomId);
   }, [roomId, joinRoom, leaveRoom]);
 
+  // Clear chat and game state when entering a new room so messages from a
+  // previous game don't carry over.
+  useEffect(() => {
+    useGameStore.setState({ messages: [], gameState: null, selectedChipId: null, lastError: null });
+  }, [roomId]);
+
   useEffect(() => {
     if (!gameState) useGameStore.setState({ selectedChipId: null, lastError: null });
   }, [gameState]);
+
+  // Face-off overlay: show once when both players are seated and no moves
+  // have been played yet. A ref prevents re-triggering on subsequent
+  // broadcasts (draw offers, state updates) before the first move.
+  useEffect(() => {
+    if (!gameState) return;
+    if (faceOffShownRef.current) return;
+    const bothSeated = gameState.players.filter((p) => p.side !== null).length === 2;
+    const noMoves = gameState.moveHistory.length === 0;
+    const inProgress = gameState.result.status === 'in-progress';
+    if (bothSeated && noMoves && inProgress) {
+      faceOffShownRef.current = true;
+      setShowFaceOff(true);
+    }
+  }, [gameState]);
+
+  // Reset the face-off ref when entering a new room.
+  useEffect(() => {
+    faceOffShownRef.current = false;
+    setShowFaceOff(false);
+  }, [roomId]);
 
   // "Me" is the seat whose userId matches our stable client identity. The
   // server-assigned connectionId changes on every reconnect and must not be
@@ -269,6 +299,9 @@ function OnlineGameView({ roomId }: { roomId: string }) {
 
   const opponent = gameState?.players.find((p) => p.userId !== userId) ?? null;
 
+  const whitePlayer = gameState?.players.find((p) => p.side === 'white') ?? null;
+  const blackPlayer = gameState?.players.find((p) => p.side === 'black') ?? null;
+
   // One dialog per finished game; dismissing keeps the board readable.
   const finishedResult = gameState?.result.status === 'finished' ? gameState.result : null;
   const resultKey = finishedResult
@@ -287,6 +320,13 @@ function OnlineGameView({ roomId }: { roomId: string }) {
 
   return (
     <main className="flex flex-1 flex-col lg:h-dvh lg:flex-row lg:items-stretch lg:overflow-hidden">
+      {showFaceOff && whitePlayer && blackPlayer && (
+        <FaceOffOverlay
+          white={whitePlayer}
+          black={blackPlayer}
+          onComplete={() => setShowFaceOff(false)}
+        />
+      )}
       {showGameOver && !replay.isReplaying && (
         <GameOverDialog
           result={gameState.result}
@@ -379,7 +419,7 @@ function OnlineGameView({ roomId }: { roomId: string }) {
             onChange={replay.goTo}
             onExit={replay.exit}
           />
-        ) : (
+        ) : gameState.result.status === 'in-progress' ? (
           <div className="rounded-xl bg-surface p-4 text-sm text-parchment shadow-lg shadow-black/30">
           <p className="mb-2 font-semibold">Players</p>
           <ul className="space-y-1 text-sm text-parchment/90">
@@ -431,6 +471,23 @@ function OnlineGameView({ roomId }: { roomId: string }) {
               </button>
             )}
           </div>
+          </div>
+        ) : (
+          <div className="rounded-xl bg-surface p-4 text-sm text-parchment shadow-lg shadow-black/30">
+            <p className="mb-2 font-semibold">Players</p>
+            <ul className="space-y-1 text-sm text-parchment/90">
+              {gameState.players.map((p) => (
+                <li key={p.userId} className="flex items-center gap-2">
+                  <span
+                    className={['inline-block h-2 w-2 rounded-full', p.connected ? 'bg-success' : 'bg-wood-edge'].join(' ')}
+                    aria-label={p.connected ? 'connected' : 'disconnected'}
+                  />
+                  <CountryFlag code={p.countryCode} className="text-base leading-none" />
+                  {p.username ?? p.userId} — <span className="text-taupe">{p.side}</span>
+                  {p.userId === userId && <span className="text-accent">(you)</span>}
+                </li>
+              ))}
+            </ul>
           </div>
         )}
         <MoveHistoryPanel
