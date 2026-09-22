@@ -15,7 +15,7 @@ export function AppRoutes() {
         <Route path="/" element={<HomePage />} />
         <Route path="/lobby" element={<LobbyPage />} />
         <Route path="/game/:gameId" element={<GamePage />} />
-        <Route path="/profile/:username" element={<ProfilePage />} />
+        <Route path="/profile" element={<ProfilePage />} />
         <Route path="/privacy" element={<PrivacyPage />} />
         <Route path="/terms" element={<TermsPage />} />
         <Route path="*" element={<NotFoundPage />} />

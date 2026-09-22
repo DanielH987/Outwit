@@ -38,14 +38,16 @@ describe('app navigation', () => {
     renderAt('/');
     const nav = screen.getAllByRole('navigation', { name: 'Main' })[0];
     await user.click(within(nav).getByRole('link', { name: 'Profile' }));
-    expect(screen.getByRole('heading', { name: 'guest' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /Profile/i })).toBeInTheDocument();
   });
 
-  it('leaves a local game back to the lobby', async () => {
+  it('warns before leaving an in-progress local game, then returns to the lobby', async () => {
     const user = userEvent.setup();
     renderAt('/game/local');
     expect(screen.getByRole('heading', { name: /Local game/i })).toBeInTheDocument();
     await user.click(screen.getByRole('link', { name: /Lobby/i }));
+    expect(screen.getByRole('dialog', { name: /Leave game/i })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /Leave anyway/i }));
     expect(screen.getByRole('heading', { name: /Game Lobby/i })).toBeInTheDocument();
   });
 

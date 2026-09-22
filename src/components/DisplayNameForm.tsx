@@ -5,7 +5,7 @@
 import { useState } from 'react';
 import { DISPLAY_NAME_MAX, normalizeDisplayName, useProfileStore } from '@/stores';
 
-export function DisplayNameForm() {
+export function DisplayNameForm({ bare = false, onSaved }: { bare?: boolean; onSaved?: (name: string) => void }) {
   const displayName = useProfileStore((s) => s.displayName);
   const guestName = useProfileStore((s) => s.guestName);
   const ensureGuestName = useProfileStore((s) => s.ensureGuestName);
@@ -30,25 +30,28 @@ export function DisplayNameForm() {
     setDraft('');
     setError(null);
     setStatus(`Saved. You'll play as ${normalized}.`);
+    onSaved?.(normalized);
   };
 
   return (
     <section
       aria-label="Display name"
-      className="mb-6 rounded-xl bg-surface p-4 shadow-lg shadow-black/30"
+      className={bare ? '' : 'mb-6 rounded-xl bg-surface p-4 shadow-lg shadow-black/30'}
       data-testid="display-name-form"
     >
-      <div className="mb-3">
-        <h3 className="text-sm font-semibold text-parchment">Display name</h3>
-        <p className="text-xs text-taupe">
-          Shown to your opponent and in chat.{' '}
-          {isGuest ? (
-            <>You're playing as <span className="text-parchment">{current}</span> until you set one.</>
-          ) : (
-            <>You're playing as <span className="text-parchment">{current}</span>.</>
-          )}
-        </p>
-      </div>
+      {!bare && (
+        <div className="mb-3">
+          <h3 className="text-sm font-semibold text-parchment">Display name</h3>
+          <p className="text-xs text-taupe">
+            Shown to your opponent and in chat.{' '}
+            {isGuest ? (
+              <>You're playing as <span className="text-parchment">{current}</span> until you set one.</>
+            ) : (
+              <>You're playing as <span className="text-parchment">{current}</span>.</>
+            )}
+          </p>
+        </div>
+      )}
 
       <form
         className="flex flex-col gap-2 sm:flex-row"

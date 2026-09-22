@@ -9,9 +9,15 @@ const input = {
   blackId: 'acct-uuid-black',
   whiteName: 'Alice',
   blackName: 'Bob',
+  whiteCountry: 'US',
+  blackCountry: 'GB',
   winner: 'white' as const,
   reason: 'base-filled',
   moveCount: 42,
+  moves: [
+    { chipId: 'white-1', from: { x: 0, y: 1 }, to: { x: 0, y: 6 } },
+    { chipId: 'black-9', from: { x: 8, y: 8 }, to: { x: 8, y: 3 } },
+  ],
 };
 
 describe('match recording', () => {
@@ -56,9 +62,15 @@ describe('match recording', () => {
       black_id: 'acct-uuid-black',
       white_name: 'Alice',
       black_name: 'Bob',
+      white_country: 'US',
+      black_country: 'GB',
       winner: 'white',
       reason: 'base-filled',
       move_count: 42,
+      moves: [
+        { chipId: 'white-1', from: { x: 0, y: 1 }, to: { x: 0, y: 6 } },
+        { chipId: 'black-9', from: { x: 8, y: 8 }, to: { x: 8, y: 3 } },
+      ],
     });
   });
 

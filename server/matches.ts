@@ -9,9 +9,12 @@ export interface MatchRecordInput {
   blackId: string;
   whiteName: string | null;
   blackName: string | null;
+  whiteCountry: string | null;
+  blackCountry: string | null;
   winner: 'white' | 'black' | null;
   reason: string;
   moveCount: number;
+  moves: Array<{ chipId: string; from: { x: number; y: number }; to: { x: number; y: number } }>;
 }
 
 export interface MatchRecorderConfig {
@@ -47,9 +50,12 @@ export async function recordMatch(
         black_id: input.blackId,
         white_name: input.whiteName,
         black_name: input.blackName,
+        white_country: input.whiteCountry,
+        black_country: input.blackCountry,
         winner: input.winner,
         reason: input.reason,
         move_count: input.moveCount,
+        moves: input.moves,
       }),
     });
     if (!res.ok) {

@@ -4,7 +4,12 @@ export { useLocalGameStore } from './localGameStore';
 export {
   useProfileStore,
   effectiveDisplayName,
-  seedDisplayNameFromAccount,
+  effectiveCountryCode,
+  syncAccountUsername,
+  clearAccountUsername,
+  suggestUsernameFromAccount,
+  hasChosenName,
+  hasAccountName,
   normalizeDisplayName,
   guestDisplayName,
   DISPLAY_NAME_MIN,

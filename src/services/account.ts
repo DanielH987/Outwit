@@ -1,8 +1,12 @@
 // Account (Supabase Auth) integration: magic-link email and Google OAuth.
 // Every function is a no-op when Supabase isn't configured (guest-only mode).
+//
+// On sign-in we also sync the account's unique username into profileStore so
+// the wire name follows the account across devices.
 
 import { supabase, authEnabled } from '@/services/supabase';
-import { useAuthStore } from '@/stores/authStore';
+import { claimUsername, fetchMyProfile } from '@/services/profile';
+import { clearAccountUsername, suggestUsernameFromAccount, syncAccountUsername, useAuthStore } from '@/stores';
 
 export { authEnabled };
 
@@ -28,8 +32,32 @@ export async function getSession(): Promise<AccountInfo | null> {
 /** Apply a session to the auth store (seat id becomes the account id). */
 export function applyAccount(info: AccountInfo | null): void {
   const store = useAuthStore.getState();
-  if (info) store.setAccount(info.id, info.email, info.accessToken);
-  else store.clearAccount();
+  if (info) {
+    store.setAccount(info.id, info.email, info.accessToken);
+    // Load the account's unique username into profileStore; guests keep the
+    // local name. Non-blocking: the header still renders the guest/old name
+    // until the profile arrives.
+    void loadAccountUsername();
+  } else {
+    store.clearAccount();
+    clearAccountUsername();
+  }
+}
+
+/** Fetch the account's username (claiming one from the email if unset). */
+export async function loadAccountUsername(): Promise<void> {
+  const profile = await fetchMyProfile();
+  if (!profile) return;
+  if (profile.username) {
+    syncAccountUsername(profile.username);
+    return;
+  }
+  // No handle yet: seed one from the email so the name is stable across
+  // devices, then claim it. If it's taken, keep the suggestion for the header.
+  const suggested = suggestUsernameFromAccount(useAuthStore.getState().email);
+  if (!suggested) return;
+  const { error } = await claimUsername(suggested);
+  if (!error) syncAccountUsername(suggested);
 }
 
 /** Send a magic-link email. Redirects back to the current origin. */
@@ -55,6 +83,7 @@ export async function signInWithGoogle(): Promise<{ error: string | null }> {
 export async function signOut(): Promise<void> {
   if (supabase) await supabase.auth.signOut();
   useAuthStore.getState().clearAccount();
+  clearAccountUsername();
 }
 
 /**

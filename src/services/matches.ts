@@ -5,6 +5,7 @@
 // profile always renders local stats regardless.
 
 import { supabase } from '@/services/supabase';
+import type { ReplayMove } from '@/engine/replay';
 
 export interface OnlineMatch {
   id: string;
@@ -17,10 +18,11 @@ export interface OnlineMatch {
   reason: string;
   moveCount: number;
   finishedAt: string;
+  moves: ReplayMove[];
 }
 
 const COLUMNS =
-  'id, room_id, white_id, black_id, white_name, black_name, winner, reason, move_count, finished_at';
+  'id, room_id, white_id, black_id, white_name, black_name, winner, reason, move_count, finished_at, moves';
 
 /** Matches where `userId` sat on either side, newest first. */
 export async function fetchMatchesFor(userId: string, limit = 20): Promise<OnlineMatch[]> {
@@ -44,6 +46,7 @@ export async function fetchMatchesFor(userId: string, limit = 20): Promise<Onlin
       reason: row.reason as string,
       moveCount: (row.move_count as number) ?? 0,
       finishedAt: row.finished_at as string,
+      moves: (row.moves as ReplayMove[]) ?? [],
     }));
   } catch (err) {
     console.error('[outwit] failed to load online matches:', err);

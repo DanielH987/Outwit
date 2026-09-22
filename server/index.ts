@@ -46,12 +46,14 @@ interface ClientInfo {
   ws: WebSocket;
   userId: string;
   username: string | null;
+  countryCode: string | null;
   roomId: string | null;
 }
 
 interface RoomPlayer {
   userId: string;
   username: string | null;
+  countryCode: string | null;
   side: PlayerId | null;
   connected: boolean;
 }
@@ -138,6 +140,7 @@ function playerSummaries(room: Room): RoomPlayerSummary[] {
   return room.state.players.map((p) => ({
     userId: p.userId,
     username: p.username,
+    countryCode: p.countryCode,
     side: p.side,
     connected: p.connected,
   }));
@@ -198,7 +201,12 @@ function roomUpdatePayload(room: Room): RoomUpdatePayload {
   return {
     roomId: room.id,
     players: playerSummaries(room),
-    spectators: room.state.spectators.map((s) => ({ userId: s.userId, username: s.username, connected: s.connected })),
+    spectators: room.state.spectators.map((s) => ({
+      userId: s.userId,
+      username: s.username,
+      countryCode: s.countryCode,
+      connected: s.connected,
+    })),
   };
 }
 
@@ -229,9 +237,12 @@ function maybeRecordFinishedMatch(room: Room) {
       blackId: black.userId,
       whiteName: white.username,
       blackName: black.username,
+      whiteCountry: white.countryCode,
+      blackCountry: black.countryCode,
       winner: s.result.winner,
       reason: s.result.reason,
       moveCount: s.moveHistory.length,
+      moves: s.moveHistory.map((m) => ({ chipId: m.chipId, from: m.from, to: m.to })),
     },
     matchRecorderConfig()
   );
@@ -290,6 +301,9 @@ function joinRoom(client: ClientInfo, payload: JoinRoomPayload, verifiedSub?: st
   const roomId = payload.roomId;
   client.roomId = roomId;
   if (payload.username !== undefined && payload.username !== null) client.username = payload.username;
+  if (payload.countryCode !== undefined && payload.countryCode !== null) {
+    client.countryCode = payload.countryCode;
+  }
 
   let room = rooms.get(roomId);
   if (!room) {
@@ -306,6 +320,7 @@ function joinRoom(client: ClientInfo, payload: JoinRoomPayload, verifiedSub?: st
     room.players.set(seatId, client);
     existing.connected = true;
     existing.username = client.username ?? existing.username;
+    existing.countryCode = client.countryCode ?? existing.countryCode;
     client.userId = seatId;
     broadcastRoomUpdate(room);
     broadcastState(room);
@@ -317,6 +332,7 @@ function joinRoom(client: ClientInfo, payload: JoinRoomPayload, verifiedSub?: st
     room.spectators.set(seatId, client);
     existingSpectator.connected = true;
     existingSpectator.username = client.username ?? existingSpectator.username;
+    existingSpectator.countryCode = client.countryCode ?? existingSpectator.countryCode;
     client.userId = seatId;
     broadcastRoomUpdate(room);
     broadcastState(room);
@@ -325,13 +341,13 @@ function joinRoom(client: ClientInfo, payload: JoinRoomPayload, verifiedSub?: st
 
   client.userId = seatId;
   if (room.state.players.length === 0) {
-    room.state.players.push({ userId: seatId, username: client.username, side: 'white', connected: true });
+    room.state.players.push({ userId: seatId, username: client.username, countryCode: client.countryCode, side: 'white', connected: true });
     room.players.set(seatId, client);
   } else if (room.state.players.length === 1) {
-    room.state.players.push({ userId: seatId, username: client.username, side: 'black', connected: true });
+    room.state.players.push({ userId: seatId, username: client.username, countryCode: client.countryCode, side: 'black', connected: true });
     room.players.set(seatId, client);
   } else {
-    room.state.spectators.push({ userId: seatId, username: client.username, side: null, connected: true });
+    room.state.spectators.push({ userId: seatId, username: client.username, countryCode: client.countryCode, side: null, connected: true });
     room.spectators.set(seatId, client);
   }
 
@@ -445,8 +461,13 @@ async function handleMessage(client: ClientInfo, message: ClientMessage) {
       const payload = message.payload as JoinRoomPayload;
       let verifiedSub: string | null = null;
 
-      if (payload.token) {
-        const verified = await verifySupabaseToken(payload.token, supabaseAuthConfig());
+      // Guest-only mode: the server has no Supabase config (local dev, tests),
+      // so there is nothing to verify a token against. A client may still send
+      // one (it is signed in on its side) — fall back to the client-supplied
+      // userId exactly like a guest join instead of rejecting the player.
+      const authConfig = supabaseAuthConfig();
+      if (payload.token && authConfig) {
+        const verified = await verifySupabaseToken(payload.token, authConfig);
         if (!verified) {
           error(client, 'Sign-in expired or invalid. Please sign in again.');
           return;
@@ -479,6 +500,7 @@ async function handleMessage(client: ClientInfo, message: ClientMessage) {
           id: `${client.userId}-${Date.now()}`,
           senderId: client.userId,
           username: p.username ?? client.username ?? 'Anon',
+          countryCode: p.countryCode ?? client.countryCode ?? null,
           text: p.text,
           timestamp: new Date().toISOString(),
         },
@@ -581,7 +603,7 @@ export function startServer(port = PORT): RunningServer {
 
   wss.on('connection', (ws) => {
     const userId = `user-${nextUserSuffix++}`;
-    const client: ClientInfo = { ws, userId, username: null, roomId: null };
+    const client: ClientInfo = { ws, userId, username: null, countryCode: null, roomId: null };
 
     markAlive(ws);
 

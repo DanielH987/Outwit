@@ -1,19 +1,25 @@
-// Device-wide display name: validation, persistence, the persisted guest
-// fallback, and seeding from a signed-in account.
+// Device-wide name: one name per player. A signed-in account's unique
+// username wins; guests fall back to a chosen name, then an auto-generated
+// Guest ####. Plus the country flag.
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
   DISPLAY_NAME_MAX,
   DISPLAY_NAME_MIN,
+  clearAccountUsername,
+  effectiveCountryCode,
   effectiveDisplayName,
   guestDisplayName,
+  hasAccountName,
+  hasChosenName,
   normalizeDisplayName,
-  seedDisplayNameFromAccount,
+  suggestUsernameFromAccount,
+  syncAccountUsername,
   useProfileStore,
 } from '../stores/profileStore';
 
 describe('profile display name', () => {
   beforeEach(() => {
-    useProfileStore.setState({ displayName: null, guestName: null });
+    useProfileStore.setState({ accountUsername: null, displayName: null, guestName: null, countryCode: null });
   });
 
   it('trims and accepts names within the length bounds', () => {
@@ -42,21 +48,7 @@ describe('profile display name', () => {
     const first = effectiveDisplayName();
     expect(first).toMatch(/^Guest \d{4}$/);
     expect(effectiveDisplayName()).toBe(first);
-    // ...and it is persisted, so a reload (fresh store read) keeps it.
     expect(useProfileStore.getState().guestName).toBe(first);
-  });
-
-  it('prefers an explicit display name over the guest fallback', () => {
-    useProfileStore.getState().ensureGuestName();
-    useProfileStore.getState().setDisplayName('Carol');
-    expect(effectiveDisplayName()).toBe('Carol');
-  });
-
-  it('keeps the guest name after clearing an explicit name', () => {
-    const guest = useProfileStore.getState().ensureGuestName();
-    useProfileStore.getState().setDisplayName('Dave');
-    useProfileStore.getState().clearDisplayName();
-    expect(effectiveDisplayName()).toBe(guest);
   });
 
   it('generates distinct guest names', () => {
@@ -65,35 +57,65 @@ describe('profile display name', () => {
   });
 });
 
-describe('seeding a name from an account', () => {
+describe('one name per player (account vs guest)', () => {
   beforeEach(() => {
-    useProfileStore.setState({ displayName: null, guestName: null });
+    useProfileStore.setState({ accountUsername: null, displayName: null, guestName: null });
   });
 
-  it('uses the email local-part when no name is set', () => {
-    seedDisplayNameFromAccount('alice@example.com');
-    expect(useProfileStore.getState().displayName).toBe('alice');
+  it('the account username is the effective name while signed in', () => {
+    useProfileStore.getState().ensureGuestName();
+    useProfileStore.getState().setDisplayName('Carol');
+    syncAccountUsername('carol');
+    expect(effectiveDisplayName()).toBe('carol');
+    expect(hasAccountName()).toBe(true);
+    expect(hasChosenName()).toBe(true);
   });
 
-  it('strips unsafe characters and enforces the length limit', () => {
-    seedDisplayNameFromAccount('a'.repeat(40) + '@example.com');
-    expect(useProfileStore.getState().displayName).toHaveLength(DISPLAY_NAME_MAX);
-
-    useProfileStore.setState({ displayName: null });
-    seedDisplayNameFromAccount('bob!@example.com');
-    expect(useProfileStore.getState().displayName).toBe('bob');
+  it('falls back to the guest name when the account has no username', () => {
+    useProfileStore.getState().setDisplayName('Carol');
+    expect(effectiveDisplayName()).toBe('Carol');
+    expect(hasAccountName()).toBe(false);
+    expect(hasChosenName()).toBe(true);
   });
 
-  it('never overwrites a name the player already chose', () => {
-    useProfileStore.getState().setDisplayName('Chosen');
-    seedDisplayNameFromAccount('other@example.com');
-    expect(useProfileStore.getState().displayName).toBe('Chosen');
+  it('clearing the account username restores the guest name', () => {
+    syncAccountUsername('carol');
+    clearAccountUsername();
+    expect(effectiveDisplayName()).toMatch(/^Guest \d{4}$/);
+    expect(hasAccountName()).toBe(false);
   });
 
-  it('does nothing when the local-part is too short or missing', () => {
-    seedDisplayNameFromAccount('a@example.com');
-    expect(useProfileStore.getState().displayName).toBeNull();
-    seedDisplayNameFromAccount(null);
-    expect(useProfileStore.getState().displayName).toBeNull();
+  it('suggests a handle from the email when the account has none', () => {
+    expect(suggestUsernameFromAccount('alice@example.com')).toBe('alice');
+    expect(suggestUsernameFromAccount('a@example.com')).toBeNull();
+    expect(suggestUsernameFromAccount(null)).toBeNull();
+    // An account that already has a name never re-suggests.
+    syncAccountUsername('chosen');
+    expect(suggestUsernameFromAccount('other@example.com')).toBeNull();
+  });
+});
+
+describe('profile country flag', () => {
+  beforeEach(() => {
+    useProfileStore.setState({ countryCode: null });
+  });
+
+  it('normalizes and stores a valid code', () => {
+    expect(useProfileStore.getState().setCountryCode('  gb ')).toBe(true);
+    expect(useProfileStore.getState().countryCode).toBe('GB');
+    expect(effectiveCountryCode()).toBe('GB');
+  });
+
+  it('rejects invalid codes without storing them', () => {
+    expect(useProfileStore.getState().setCountryCode('USA')).toBe(false);
+    expect(useProfileStore.getState().setCountryCode('x')).toBe(false);
+    expect(useProfileStore.getState().countryCode).toBeNull();
+    expect(effectiveCountryCode()).toBeNull();
+  });
+
+  it('clears by setting null', () => {
+    useProfileStore.getState().setCountryCode('FR');
+    useProfileStore.setState({ countryCode: null });
+    expect(effectiveCountryCode()).toBeNull();
   });
 });

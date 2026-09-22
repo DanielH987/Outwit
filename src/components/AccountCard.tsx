@@ -35,7 +35,7 @@ function GoogleMark({ className }: { className?: string }) {
   );
 }
 
-export function AccountCard() {
+export function AccountCard({ bare = false }: { bare?: boolean }) {
   const { available } = useAccount();
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const email = useAuthStore((s) => s.email);
@@ -68,7 +68,7 @@ export function AccountCard() {
   return (
     <section
       aria-label="Account"
-      className="mb-6 rounded-xl bg-surface p-4 shadow-lg shadow-black/30"
+      className={bare ? 'pb-1' : 'mb-6 rounded-xl bg-surface p-4 shadow-lg shadow-black/30'}
       data-testid="account-card"
     >
       {isAuthenticated ? (

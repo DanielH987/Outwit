@@ -141,4 +141,42 @@ describe('multiplayer server', () => {
     a.close();
     b.close();
   });
+
+  it('carries the country flag on join and refreshes it on reconnect', async () => {
+    const roomId = 'flags';
+    const a = await connect();
+    a.send('join-room', { roomId, userId: a.userId, username: 'A', countryCode: 'US' });
+    let update = await a.next('room-update');
+    expect((update.payload as any).players[0]).toMatchObject({ userId: a.userId, countryCode: 'US' });
+
+    // Reconnect with a different flag: the seat keeps the newer code.
+    const a2 = await connect();
+    a2.send('join-room', { roomId, userId: a.userId, username: 'A', countryCode: 'CA' });
+    update = await a2.next('room-update');
+    expect((update.payload as any).players.find((p: any) => p.userId === a.userId)?.countryCode).toBe('CA');
+
+    a.close();
+    a2.close();
+  });
+
+  it('treats a token-bearing join as a guest when auth is not configured', async () => {
+    // This server runs without SUPABASE_URL, so verification is disabled. A
+    // signed-in client (which always attaches a token) must still be seated
+    // rather than rejected — otherwise local dev hangs on "Connecting…".
+    const roomId = 'guest-mode';
+    const a = await connect();
+    a.send('join-room', {
+      roomId,
+      userId: 'account-uuid-local',
+      username: 'SignedIn',
+      token: 'anything.that.looks.like.a.jwt',
+    });
+    const update = await a.next('room-update');
+    expect((update.payload as any).players[0]).toMatchObject({ userId: 'account-uuid-local', side: 'white' });
+    // No error should have been emitted for the join.
+    const state = await a.next('game-state');
+    expect((state.payload as any).players).toHaveLength(1);
+
+    a.close();
+  });
 });

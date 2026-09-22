@@ -16,7 +16,7 @@ export function HomePage() {
           Play Now
         </Link>
         <Link
-          to="/profile/guest"
+          to="/profile"
           className="rounded-lg border border-wood-edge bg-surface px-6 py-3 font-semibold text-parchment transition hover:border-accent hover:text-accent"
         >
           Profile

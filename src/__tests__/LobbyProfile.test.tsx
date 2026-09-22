@@ -35,7 +35,7 @@ describe('LobbyPage', () => {
     expect(line).toHaveTextContent(/Playing as/);
     // Guest fallback is generated on demand.
     expect(line.textContent).toMatch(/Guest \d{4}/);
-    expect(screen.getByRole('link', { name: /Change name/i })).toHaveAttribute('href', '/profile/guest');
+    expect(screen.getByRole('link', { name: /Change name/i })).toHaveAttribute('href', '/profile');
   });
 
   it('uses the saved display name in the lobby', () => {
@@ -67,7 +67,7 @@ describe('ProfilePage', () => {
   it('shows zeroed stats and empty state', () => {
     render(<MemoryRouter><ProfilePage /></MemoryRouter>);
     expect(screen.getByText(/No local games yet/i)).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: /guest/i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /Profile/i })).toBeInTheDocument();
   });
 
   it('renders stats and match history from the stats store', () => {
@@ -79,6 +79,7 @@ describe('ProfilePage', () => {
       moveCount: 42,
       whiteSeconds: 120,
       blackSeconds: 90,
+      moves: [{ chipId: 'white-1', from: { x: 0, y: 1 }, to: { x: 0, y: 6 } }],
     });
     add({
       finishedAt: new Date('2026-09-11T13:00:00Z').toISOString(),
@@ -87,6 +88,7 @@ describe('ProfilePage', () => {
       moveCount: 60,
       whiteSeconds: 300,
       blackSeconds: 310,
+      moves: [],
     });
 
     render(<MemoryRouter><ProfilePage /></MemoryRouter>);
@@ -95,6 +97,63 @@ describe('ProfilePage', () => {
     expect(screen.getByText('White won')).toBeInTheDocument();
     expect(screen.getByText('Draw')).toBeInTheDocument();
     expect(screen.getByText(/42 moves/)).toBeInTheDocument();
+  });
+
+  it('renders old match records that lack the moves field without crashing', () => {
+    // Simulate pre-migration localStorage data: matches saved before `moves` existed.
+    useStatsStore.setState({
+      matches: [
+        {
+          finishedAt: '2026-09-10T10:00:00Z',
+          winner: 'white' as const,
+          reason: 'base-filled' as const,
+          moveCount: 20,
+          whiteSeconds: 60,
+          blackSeconds: 50,
+        },
+      ] as never,
+    });
+
+    render(<MemoryRouter><ProfilePage /></MemoryRouter>);
+    expect(screen.getByText('White won')).toBeInTheDocument();
+    expect(screen.getByText(/20 moves/)).toBeInTheDocument();
+  });
+
+  it('clicking a local match row opens the replay modal', async () => {
+    const user = userEvent.setup();
+    const add = useStatsStore.getState().addMatch;
+    add({
+      finishedAt: new Date('2026-09-11T12:00:00Z').toISOString(),
+      winner: 'white',
+      reason: 'base-filled',
+      moveCount: 1,
+      whiteSeconds: 30,
+      blackSeconds: 20,
+      moves: [{ chipId: 'white-1', from: { x: 0, y: 1 }, to: { x: 0, y: 6 } }],
+    });
+
+    render(<MemoryRouter><ProfilePage /></MemoryRouter>);
+    await user.click(screen.getByRole('button', { name: /White won/i }));
+    expect(screen.getByRole('dialog', { name: /Game replay/i })).toBeInTheDocument();
+    expect(screen.getByRole('grid', { name: /outwit board/i })).toBeInTheDocument();
+  });
+
+  it('does not open replay for a match with no moves', async () => {
+    const user = userEvent.setup();
+    const add = useStatsStore.getState().addMatch;
+    add({
+      finishedAt: new Date('2026-09-11T12:00:00Z').toISOString(),
+      winner: 'white',
+      reason: 'resignation',
+      moveCount: 0,
+      whiteSeconds: 5,
+      blackSeconds: 3,
+      moves: [],
+    });
+
+    render(<MemoryRouter><ProfilePage /></MemoryRouter>);
+    await user.click(screen.getByRole('button', { name: /White won/i }));
+    expect(screen.queryByRole('dialog', { name: /Game replay/i })).not.toBeInTheDocument();
   });
 });
 
@@ -109,6 +168,17 @@ describe('stats recording on local game end', () => {
     const matches = useStatsStore.getState().matches;
     expect(matches).toHaveLength(1);
     expect(matches[0]).toMatchObject({ winner: 'white', reason: 'resignation', moveCount: 0 });
+    expect(matches[0].moves).toEqual([]);
+  });
+
+  it('records a finished game with persisted moves', () => {
+    useLocalGameStore.getState().selectChip('white-1');
+    useLocalGameStore.getState().moveSelected({ x: 0, y: 6 });
+    useLocalGameStore.getState().resign('black');
+    const matches = useStatsStore.getState().matches;
+    expect(matches).toHaveLength(1);
+    expect(matches[0].moves).toHaveLength(1);
+    expect(matches[0].moves[0]).toMatchObject({ chipId: 'white-1', from: { x: 0, y: 1 }, to: { x: 0, y: 6 } });
   });
 
   it('records a finished game on draw agreement', () => {

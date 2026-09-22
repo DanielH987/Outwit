@@ -31,6 +31,7 @@ function recordFinishedGame(result: GameResult, elapsedSeconds: Record<PlayerId,
     moveCount: moveHistory.length,
     whiteSeconds: elapsedSeconds.white,
     blackSeconds: elapsedSeconds.black,
+    moves: moveHistory.map((m) => ({ chipId: m.chipId, from: m.from, to: m.to })),
   });
 }
 

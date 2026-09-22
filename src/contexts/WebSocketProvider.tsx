@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { webSocketService, type ConnectionState } from '@/services/websocket';
-import { effectiveDisplayName, useAuthStore, useGameStore } from '@/stores';
+import { effectiveCountryCode, effectiveDisplayName, useAuthStore, useGameStore } from '@/stores';
 import type { ServerMessage } from '@/types';
 
 interface WebSocketContextValue {
@@ -44,7 +44,11 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
           setConnectionId((message.payload as { userId: string }).userId);
           break;
         case 'game-state':
+          // A fresh authoritative state means the server moved on (a player
+          // joined, a move landed, etc.) — clear any stale error banner so it
+          // doesn't linger after the condition that caused it is resolved.
           updateGameState(message.payload);
+          setLastError(null);
           break;
         case 'chat-message':
           addMessage(message.payload as never);
@@ -79,7 +83,7 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
       if (!active) return;
       const players = useGameStore.getState().gameState?.players.length ?? 0;
       if (players >= 2) return;
-      const next = { ...active, userId: state.userId, token: state.accessToken, username: effectiveDisplayName() };
+      const next = { ...active, userId: state.userId, token: state.accessToken, username: effectiveDisplayName(), countryCode: effectiveCountryCode() };
       webSocketService.setActiveRoom(next);
       webSocketService.send({ type: 'join-room', payload: next });
     });

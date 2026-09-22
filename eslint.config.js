@@ -36,6 +36,14 @@ export default tseslint.config(
     },
   },
   {
+    // Dialogs may export both the component and a paired hook (usePendingLeave),
+    // matching the project's provider/component+hook co-location pattern.
+    files: ['src/components/LeaveConfirmDialog.tsx'],
+    rules: {
+      'react-refresh/only-export-components': 'off',
+    },
+  },
+  {
     // Test files and the standalone server use targeted casts for payload
     // shapes; keep `any` allowed there but warn everywhere else.
     files: ['src/__tests__/**/*.ts', 'src/__tests__/**/*.tsx', 'server/**/*.ts'],

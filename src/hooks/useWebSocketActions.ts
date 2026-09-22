@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import { useWebSocket } from '@/contexts/WebSocketProvider';
 import { webSocketService } from '@/services/websocket';
-import { effectiveDisplayName, useAuthStore } from '@/stores';
+import { effectiveCountryCode, effectiveDisplayName, useAuthStore } from '@/stores';
 import type { ClientMessage } from '@/types';
 
 /**
@@ -17,10 +17,10 @@ export function useWebSocketActions() {
 
   const getAuth = useCallback(() => {
     const { userId, accessToken } = useAuthStore.getState();
-    // Display name comes from profileStore (device-wide); falls back to a
-    // generated Guest name when the player never set one. The access token is
+    // Display name and flag come from profileStore (device-wide); falls back to
+    // a generated Guest name when the player never set one. The access token is
     // present only when signed in; the server verifies it and derives our seat.
-    return { userId: userId ?? null, username: effectiveDisplayName(), token: accessToken };
+    return { userId: userId ?? null, username: effectiveDisplayName(), countryCode: effectiveCountryCode(), token: accessToken };
   }, []);
 
   const joinRoom = useCallback(
@@ -52,10 +52,10 @@ export function useWebSocketActions() {
 
   const sendChat = useCallback(
     (roomId: string, text: string) => {
-      const { userId, username } = getAuth();
+      const { userId, username, countryCode } = getAuth();
       const message: ClientMessage = {
         type: 'send-chat',
-        payload: { roomId, userId, username, text },
+        payload: { roomId, userId, username, countryCode, text },
       };
       send(message);
     },

@@ -45,7 +45,7 @@ function ProfileIcon({ className }: { className?: string }) {
 
 const NAV_ITEMS = [
   { to: '/lobby', label: 'Play', Icon: BoardIcon },
-  { to: '/profile/guest', label: 'Profile', Icon: ProfileIcon },
+  { to: '/profile', label: 'Profile', Icon: ProfileIcon },
 ];
 
 const railLink = ({ isActive }: { isActive: boolean }) =>

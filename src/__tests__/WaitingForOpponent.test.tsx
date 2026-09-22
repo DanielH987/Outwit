@@ -37,6 +37,19 @@ describe('WaitingForOpponent', () => {
     expect(await screen.findByRole('button', { name: 'Copied' })).toBeInTheDocument();
   });
 
+  it('copies just the room code via the small icon button', async () => {
+    const user = userEvent.setup();
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    stubClipboard(writeText);
+
+    render(<WaitingForOpponent roomId="K7M2QP" />);
+    await user.click(screen.getByTestId('copy-room-code'));
+
+    expect(writeText).toHaveBeenCalledWith('K7M2QP');
+    // The checkmark state is only visible briefly, so assert on the write call.
+    expect(screen.getByTestId('copy-room-code')).toHaveAttribute('aria-label', 'Copy room code');
+  });
+
   it('stays usable when the clipboard write fails', async () => {
     const user = userEvent.setup();
     const writeText = vi.fn().mockRejectedValue(new Error('denied'));

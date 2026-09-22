@@ -4,6 +4,7 @@
 import { useState } from 'react';
 import { useGameStore } from '@/stores';
 import type { PlayerId } from '@/engine';
+import { CountryFlag } from '@/components/CountryFlag';
 
 interface ChatPanelProps {
   roomId: string;
@@ -32,6 +33,7 @@ export function ChatPanel({ roomId, sendChat, mySide }: ChatPanelProps) {
         ) : (
           messages.map((m) => (
             <p key={m.id} className="text-parchment/90">
+              <CountryFlag code={m.countryCode} className="text-sm" />{' '}
               <span className="text-taupe">{m.username ?? 'Anon'}:</span> {m.text}
             </p>
           ))

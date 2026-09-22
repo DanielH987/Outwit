@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Board } from '@/components/Board';
 import { ChatPanel } from '@/components/ChatPanel';
+import { CountryFlag } from '@/components/CountryFlag';
+import { LeaveConfirmDialog, usePendingLeave } from '@/components/LeaveConfirmDialog';
 import { ForfeitCountdownBanner } from '@/components/ForfeitCountdownBanner';
 import { GameClocks } from '@/components/GameClocks';
 import { GameControls } from '@/components/GameControls';
@@ -16,6 +18,8 @@ import type { MoveRecord } from '@/stores/localGameStore';
 import { useWebSocketActions } from '@/hooks/useWebSocketActions';
 import { useWebSocket } from '@/contexts/WebSocketProvider';
 import { useAuthStore } from '@/stores';
+import { useGameLeaveWarning } from '@/hooks/useGameLeaveWarning';
+import { useReplay } from '@/hooks/useReplay';
 import type { Position } from '@/engine';
 
 const LOCAL_ID = 'local';
@@ -28,37 +32,6 @@ function useBoardHighlight(moveHistory: MoveRecord[]) {
   const [hovered, setHovered] = useState<MoveRecord | null>(null);
   const latest = moveHistory.length > 0 ? moveHistory[moveHistory.length - 1] : null;
   return { highlight: hovered ?? latest, onHighlight: setHovered };
-}
-
-/**
- * Review mode state. `-1` means "before any move"; otherwise the index of the
- * move being viewed. `null` means replay is off (live position).
- *
- * Replay is purely a client-side view: it reconstructs historical positions by
- * replaying the move history locally and never sends anything or affects the
- * game. Board input is blocked while reviewing.
- */
-function useReplay(moveHistory: MoveRecord[]) {
-  const [index, setIndex] = useState<number | null>(null);
-
-  // Leaving/shrinking the history (new game, reset) exits replay.
-  useEffect(() => {
-    setIndex((current) => {
-      if (current === null) return null;
-      if (moveHistory.length === 0) return null;
-      return Math.min(current, moveHistory.length - 1);
-    });
-  }, [moveHistory.length]);
-
-  const isReplaying = index !== null;
-
-  return {
-    isReplaying,
-    index,
-    start: () => setIndex(Math.max(0, moveHistory.length - 1)),
-    exit: () => setIndex(null),
-    goTo: (next: number) => setIndex(Math.max(-1, Math.min(next, moveHistory.length - 1))),
-  };
 }
 
 /**
@@ -85,6 +58,8 @@ function LocalGameView() {
 
   const { highlight: hoveredMove, onHighlight } = useBoardHighlight(moveHistory);
   const replay = useReplay(moveHistory);
+  const localLeave = usePendingLeave();
+  useGameLeaveWarning(result.status === 'in-progress' && !replay.isReplaying);
 
   // While reviewing, the board shows a reconstructed past position and input is
   // disabled — nothing about the real game changes.
@@ -137,6 +112,13 @@ function LocalGameView() {
           onDismiss={() => setDismissedResultKey(resultKey)}
         />
       )}
+      {localLeave.pending && (
+        <LeaveConfirmDialog
+          warning={localLeave.pending.warning}
+          onConfirm={localLeave.confirmLeave}
+          onCancel={localLeave.cancelLeave}
+        />
+      )}
       {/* Board column. Desktop: board sized from viewport height (9:10 → ×0.9)
           with a hair of margin, so it nearly touches top and bottom. */}
       <div className="flex flex-1 items-start justify-center px-0 py-2 lg:items-center lg:px-3">
@@ -156,9 +138,14 @@ function LocalGameView() {
           board like chess.com mobile. */}
       <aside className="flex w-full flex-col gap-3 px-4 pb-4 sm:px-6 lg:h-full lg:w-80 lg:shrink-0 lg:overflow-y-auto lg:border-l lg:border-wood-edge/60 lg:px-4 lg:py-4 xl:w-96">
         <div className="flex items-center justify-between gap-3">
-          <Link to="/lobby" className="text-sm font-semibold text-taupe transition hover:text-accent">
+          <LeaveAwareLink
+            to="/lobby"
+            inProgress={result.status === 'in-progress' && !replay.isReplaying}
+            requestLeave={localLeave.requestLeave}
+            className="text-sm font-semibold text-taupe transition hover:text-accent"
+          >
             ← Lobby
-          </Link>
+          </LeaveAwareLink>
           <h2 className="text-lg font-bold">Local game</h2>
         </div>
         <p className="hidden text-sm text-taupe lg:block">
@@ -209,6 +196,7 @@ function OnlineGameView({ roomId }: { roomId: string }) {
   const { userId } = useAuthStore();
   const [dismissedResultKey, setDismissedResultKey] = useState<string | null>(null);
   const navigate = useNavigate();
+  const onlineLeave = usePendingLeave();
 
   useEffect(() => {
     joinRoom(roomId);
@@ -243,6 +231,9 @@ function OnlineGameView({ roomId }: { roomId: string }) {
   const history = useMemo(() => gameState?.moveHistory ?? [], [gameState]);
   const { highlight: hoveredMove, onHighlight } = useBoardHighlight(history);
   const replay = useReplay(history);
+  useGameLeaveWarning(
+    gameState?.result.status === 'in-progress' && !replay.isReplaying
+  );
 
   // Reviewing reconstructs a past position locally; the server state is untouched.
   const viewedState = useMemo(
@@ -306,6 +297,13 @@ function OnlineGameView({ roomId }: { roomId: string }) {
           detail={opponent ? `vs ${opponent.username ?? opponent.userId}` : null}
         />
       )}
+      {onlineLeave.pending && (
+        <LeaveConfirmDialog
+          warning={onlineLeave.pending.warning}
+          onConfirm={onlineLeave.confirmLeave}
+          onCancel={onlineLeave.cancelLeave}
+        />
+      )}
       <div className="flex flex-1 items-start justify-center px-0 py-2 lg:items-center lg:px-3">
         <div className="w-full max-w-[min(100%,calc((100dvh-16rem)*0.9))] lg:max-w-[min(100%,calc((100dvh-1.5rem)*0.9))]">
           <Board
@@ -320,9 +318,14 @@ function OnlineGameView({ roomId }: { roomId: string }) {
 
       <aside className="flex w-full flex-col gap-3 px-4 pb-4 sm:px-6 lg:h-full lg:w-80 lg:shrink-0 lg:overflow-y-auto lg:border-l lg:border-wood-edge/60 lg:px-4 lg:py-4 xl:w-96">
         <div className="flex items-center justify-between gap-3">
-          <Link to="/lobby" className="text-sm font-semibold text-taupe transition hover:text-accent">
+          <LeaveAwareLink
+            to="/lobby"
+            inProgress={gameState.result.status === 'in-progress' && !replay.isReplaying}
+            requestLeave={onlineLeave.requestLeave}
+            className="text-sm font-semibold text-taupe transition hover:text-accent"
+          >
             ← Lobby
-          </Link>
+          </LeaveAwareLink>
           <h2 className="truncate text-lg font-bold">Room {roomId}</h2>
         </div>
         <p className="text-sm text-taupe">
@@ -386,6 +389,7 @@ function OnlineGameView({ roomId }: { roomId: string }) {
                   className={['inline-block h-2 w-2 rounded-full', p.connected ? 'bg-success' : 'bg-wood-edge'].join(' ')}
                   aria-label={p.connected ? 'connected' : 'disconnected'}
                 />
+                <CountryFlag code={p.countryCode} className="text-base leading-none" />
                 {p.username ?? p.userId} — <span className="text-taupe">{p.side}</span>
                 {p.userId === userId && <span className="text-accent">(you)</span>}
               </li>
@@ -439,6 +443,31 @@ function OnlineGameView({ roomId }: { roomId: string }) {
         <ChatPanel roomId={roomId} sendChat={sendChat} mySide={mySide} />
       </aside>
     </main>
+  );
+}
+
+interface LeaveAwareLinkProps extends Omit<React.AnchorHTMLAttributes<HTMLAnchorElement>, 'href'> {
+  to: string;
+  inProgress: boolean;
+  requestLeave: (to: string, warning?: string) => void;
+}
+
+function LeaveAwareLink({ to, inProgress, requestLeave, children, onClick, ...rest }: LeaveAwareLinkProps) {
+  return (
+    <Link
+      to={to}
+      onClick={(e) => {
+        if (inProgress) {
+          e.preventDefault();
+          requestLeave(to, 'You have a game in progress.');
+          return;
+        }
+        onClick?.(e);
+      }}
+      {...rest}
+    >
+      {children}
+    </Link>
   );
 }
 

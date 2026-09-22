@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ServerUnavailable } from '@/components/ServerUnavailable';
+import { CountryFlag } from '@/components/CountryFlag';
 import { webSocketService } from '@/services/websocket';
 import { useLocalGameStore, useProfileStore } from '@/stores';
 import { generateInviteCode, isValidInviteCode, normalizeInviteCode } from '@/utils/inviteCode';
@@ -15,6 +16,7 @@ export function LobbyPage() {
   const localInProgress = localResult.status === 'in-progress' && localMoves > 0;
   const displayName = useProfileStore((s) => s.displayName);
   const guestName = useProfileStore((s) => s.guestName);
+  const countryCode = useProfileStore((s) => s.countryCode);
   const ensureGuestName = useProfileStore((s) => s.ensureGuestName);
 
   useEffect(() => {
@@ -56,7 +58,7 @@ export function LobbyPage() {
             {localInProgress ? 'Resume local game' : 'Play now'}
           </Link>
           <Link
-            to="/profile/guest"
+            to="/profile"
             className="rounded-lg border border-wood-edge px-6 py-3 font-semibold text-parchment transition hover:border-accent hover:text-accent"
           >
             View profile
@@ -74,8 +76,9 @@ export function LobbyPage() {
 
         {/* Name lives in Profile (chess.com-style: settings, not the lobby). */}
         <p className="mb-4 text-xs text-taupe" data-testid="playing-as">
-          Playing as <span className="font-semibold text-parchment">{playingAs}</span>.{' '}
-          <Link to="/profile/guest" className="text-accent hover:underline">
+          Playing as <CountryFlag code={countryCode} className="text-sm" />{' '}
+          <span className="font-semibold text-parchment">{playingAs}</span>.{' '}
+          <Link to="/profile" className="text-accent hover:underline">
             Change name
           </Link>
         </p>

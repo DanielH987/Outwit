@@ -28,6 +28,7 @@ export interface ChatMessage {
   id: string;
   senderId: string;
   username: string;
+  countryCode?: string | null;
   text: string;
   timestamp: string;
 }
@@ -55,6 +56,8 @@ export interface JoinRoomPayload {
   roomId: string;
   userId: string | null;
   username: string | null;
+  /** Two-letter ISO 3166-1 code shown as a flag next to the name (optional). */
+  countryCode?: string | null;
   /** Supabase access token when signed in; the server verifies it and keys the
    *  seat by its `sub`, ignoring `userId` in that case. Guests omit it. */
   token?: string | null;
@@ -75,6 +78,7 @@ export interface SendChatPayload {
   roomId: string;
   userId: string | null;
   username: string | null;
+  countryCode?: string | null;
   text: string;
 }
 
@@ -102,6 +106,7 @@ export interface ConnectedPayload {
 export interface RoomPlayerSummary {
   userId: string;
   username: string | null;
+  countryCode?: string | null;
   side: 'white' | 'black' | null;
   connected: boolean;
 }
@@ -109,7 +114,7 @@ export interface RoomPlayerSummary {
 export interface RoomUpdatePayload {
   roomId: string;
   players: RoomPlayerSummary[];
-  spectators: Array<{ userId: string; username: string | null; connected: boolean }>;
+  spectators: Array<{ userId: string; username: string | null; countryCode?: string | null; connected: boolean }>;
 }
 
 /** Server-side disconnect-forfeit countdown, present while a seat is absent. */

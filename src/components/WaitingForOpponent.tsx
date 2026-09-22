@@ -11,6 +11,7 @@ interface WaitingForOpponentProps {
 export function WaitingForOpponent({ roomId }: WaitingForOpponentProps) {
   const url = inviteUrl(roomId);
   const [copied, setCopied] = useState(false);
+  const [codeCopied, setCodeCopied] = useState(false);
 
   const copy = async () => {
     try {
@@ -21,6 +22,16 @@ export function WaitingForOpponent({ roomId }: WaitingForOpponentProps) {
       // Clipboard unavailable (permissions/insecure context): the input below
       // stays selectable so the link can still be copied by hand.
       setCopied(false);
+    }
+  };
+
+  const copyCode = async () => {
+    try {
+      await navigator.clipboard.writeText(roomId);
+      setCodeCopied(true);
+      setTimeout(() => setCodeCopied(false), 2000);
+    } catch {
+      setCodeCopied(false);
     }
   };
 
@@ -41,9 +52,30 @@ export function WaitingForOpponent({ roomId }: WaitingForOpponentProps) {
       <p className="mb-1 font-semibold">Waiting for opponent</p>
       <p className="mb-3 text-taupe">Share this link — the first to join plays White, the second Black.</p>
 
-      <p className="mb-2 text-center font-mono text-lg tracking-[0.25em] text-accent" data-testid="room-code">
-        {roomId}
-      </p>
+      <div className="mb-2 flex items-center justify-center gap-1.5">
+        <p className="text-center font-mono text-lg tracking-[0.25em] text-accent" data-testid="room-code">
+          {roomId}
+        </p>
+        <button
+          type="button"
+          onClick={copyCode}
+          aria-label="Copy room code"
+          title="Copy room code"
+          data-testid="copy-room-code"
+          className="shrink-0 rounded p-1 text-taupe/60 transition hover:text-accent"
+        >
+          {codeCopied ? (
+            <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M20 6L9 17l-5-5" />
+            </svg>
+          ) : (
+            <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+            </svg>
+          )}
+        </button>
+      </div>
 
       <div className="mb-3 flex gap-2">
         <input

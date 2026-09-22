@@ -1,21 +1,20 @@
-// Device-wide player profile: the display name shown in the players list and
+// Device-wide player profile: the single name shown in the players list and
 // chat. Persisted to localStorage so it is shared across tabs (the seat id is
 // per-tab, but the human's name should follow them everywhere).
 //
+// One name per player:
+//   1. `accountUsername` — a signed-in account's unique handle (also stored in
+//      Supabase, so it follows the player across devices). This is the wire name
+//      while signed in.
+//   2. `displayName`    — a guest's chosen name, or an explicit local name.
+//   3. `guestName`      — the auto-generated `Guest ####` fallback, persisted so
+//      a guest keeps the same name across reloads and tabs.
+//
 // Distinct from `authStore`, which owns the per-tab seat identity.
-//
-// Two name sources, in priority order:
-//   1. `displayName` — an explicit choice made in Profile (or seeded from a
-//      signed-in account's email). This is the player's real name.
-//   2. `guestName`   — an auto-generated `Guest ####` fallback, persisted so a
-//      guest keeps the same name across reloads and tabs. Regenerating it each
-//      load (the old behavior) silently renamed players on refresh.
-//
-// Inspired by chess.com, where a username comes from the account and is changed
-// in Settings rather than being prompted for in the lobby or during a game.
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { normalizeCountryCode } from '@/utils/flags';
 
 export const DISPLAY_NAME_MIN = 2;
 export const DISPLAY_NAME_MAX = 20;
@@ -33,13 +32,21 @@ export function guestDisplayName(): string {
 }
 
 interface ProfileState {
-  /** Explicitly chosen name (Profile settings) or seeded from an account. */
+  /** A signed-in account's unique handle (mirrors `profiles.username`). */
+  accountUsername: string | null;
+  /** A guest's explicitly chosen name (or a local name override). */
   displayName: string | null;
   /** Persisted auto-generated fallback used until a real name is chosen. */
   guestName: string | null;
+  /** Two-letter ISO 3166-1 country code shown next to the name (flag icon). */
+  countryCode: string | null;
+  /** Set the account handle (cache synced from Supabase on sign-in). */
+  setAccountUsername: (username: string | null) => void;
   /** Returns false (and stores nothing) when the name is invalid. */
   setDisplayName: (name: string) => boolean;
   clearDisplayName: () => void;
+  /** Sets the flag; stores nothing when the code is invalid. */
+  setCountryCode: (code: string) => boolean;
   /** Generate and persist a guest name on first use; returns the current one. */
   ensureGuestName: () => string;
 }
@@ -47,8 +54,11 @@ interface ProfileState {
 export const useProfileStore = create<ProfileState>()(
   persist(
     (set, get) => ({
+      accountUsername: null,
       displayName: null,
       guestName: null,
+      countryCode: null,
+      setAccountUsername: (username) => set({ accountUsername: username }),
       setDisplayName: (name) => {
         const normalized = normalizeDisplayName(name);
         if (normalized === null) return false;
@@ -56,6 +66,12 @@ export const useProfileStore = create<ProfileState>()(
         return true;
       },
       clearDisplayName: () => set({ displayName: null }),
+      setCountryCode: (code) => {
+        const normalized = normalizeCountryCode(code);
+        if (normalized === null) return false;
+        set({ countryCode: normalized });
+        return true;
+      },
       ensureGuestName: () => {
         const existing = get().guestName;
         if (existing) return existing;
@@ -71,34 +87,65 @@ export const useProfileStore = create<ProfileState>()(
         const state = (persisted ?? {}) as Partial<ProfileState>;
         return {
           ...state,
+          accountUsername: state.accountUsername ?? null,
           displayName: state.displayName ?? null,
           guestName: state.guestName ?? null,
+          countryCode: state.countryCode ?? null,
         } as ProfileState;
       },
     }
   )
 );
 
-/** Name to send on the wire: the chosen name, else the persisted guest name. */
+/**
+ * Name to send on the wire: a signed-in account's unique handle, else the
+ * guest's chosen name, else the persisted auto-generated guest fallback.
+ */
 export function effectiveDisplayName(): string {
-  const { displayName, guestName, ensureGuestName } = useProfileStore.getState();
-  return displayName ?? guestName ?? ensureGuestName();
+  const { accountUsername, displayName, guestName, ensureGuestName } = useProfileStore.getState();
+  return accountUsername ?? displayName ?? guestName ?? ensureGuestName();
 }
 
 /** True once the player has a name they (or their account) actually chose. */
 export function hasChosenName(): boolean {
-  return useProfileStore.getState().displayName !== null;
+  const { accountUsername, displayName } = useProfileStore.getState();
+  return accountUsername !== null || displayName !== null;
+}
+
+/** Whether the account handle is currently the effective name. */
+export function hasAccountName(): boolean {
+  return useProfileStore.getState().accountUsername !== null;
 }
 
 /**
- * Seed a name from a signed-in account when the player hasn't chosen one.
- * Mirrors chess.com assigning a username at signup. No-op if a name exists.
+ * Cache the signed-in account's unique handle on this device (mirror of
+ * `profiles.username`), so the name shown on the wire follows the account
+ * across devices. No-op when the account has no handle yet.
  */
-export function seedDisplayNameFromAccount(email: string | null): void {
-  if (hasChosenName()) return;
+export function syncAccountUsername(username: string | null): void {
+  useProfileStore.getState().setAccountUsername(username);
+}
+
+/** Clear the cached account handle on sign-out. */
+export function clearAccountUsername(): void {
+  useProfileStore.getState().setAccountUsername(null);
+}
+
+/**
+ * Derive a username-style handle from an account email (e.g. alice@example.com
+ * → `alice`) when the account has no username yet. Mirrors chess.com assigning
+ * a username at signup; no-op if the account already has one.
+ */
+export function suggestUsernameFromAccount(email: string | null): string | null {
+  if (hasAccountName()) return null;
   const local = (email ?? '').split('@')[0] ?? '';
   // Keep it to safe characters and the same length bounds as manual names.
-  const candidate = local.replace(/[^A-Za-z0-9 ._-]/g, '').trim();
-  if (candidate.length < DISPLAY_NAME_MIN) return;
-  useProfileStore.getState().setDisplayName(candidate.slice(0, DISPLAY_NAME_MAX));
+  const candidate = local.replace(/[^A-Za-z0-9_.-]/g, '').trim();
+  if (candidate.length < 3) return null;
+  return candidate.slice(0, 20);
+}
+
+/** The device-wide flag code to send on the wire (null when unset). */
+export function effectiveCountryCode(): string | null {
+  return useProfileStore.getState().countryCode;
 }

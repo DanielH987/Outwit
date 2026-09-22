@@ -17,7 +17,9 @@
 | --- | --- | --- |
 | Identity | A random `userId` (`user_xxx`) is generated per browser tab and persisted to **`sessionStorage`**. Refresh keeps it; closing the tab loses it. Nothing ever calls `setUser`. | `src/stores/authStore.ts` |
 | Display names | Players appear as `user_p78g7h1eh_mu1oyoj5` in the players list and chat; there is no name UI anywhere. | `src/pages/GamePage.tsx`, `src/components/ChatPanel.tsx` |
+| Flags | A device-wide country flag (`countryCode` in `profileStore`, M6.4) shows next to every player's name in-game, in chat, and in the lobby. Guests and accounts alike. | `src/components/FlagPicker.tsx`, `src/components/CountryFlag.tsx` |
 | Profiles | `/profile/:username` ignores the URL and renders **local pass-and-play stats** from `localStorage` only. Nothing online is recorded. | `src/pages/ProfilePage.tsx`, `src/stores/statsStore.ts` |
+| Usernames | Signed-in accounts can claim a **unique username** (`profiles.username`, C7) — the future friend-search handle. Guests have none. | `src/services/profile.ts`, `src/components/UsernameForm.tsx` |
 | Online games | In-memory rooms on Render; finished games are discarded, and rooms are lost when the free tier sleeps (~15 min idle) or redeploys. | `server/index.ts`, `docs/DEPLOYMENT.md` |
 | Trust | The server validates moves with `src/engine/` but **trusts the client-supplied `userId`**; anyone could claim any seat id. No auth. | `server/index.ts` (`join-room`) |
 | Friend play | Works today via a shared room name/URL (`/game/<room>`; first joiner White, second Black, rest spectate), but there is no invite UX. | `src/pages/LobbyPage.tsx`, `server/index.ts` |
@@ -32,12 +34,14 @@
 
 - **No authentication in Phase A.** Playing a friend does not need accounts; accounts solve *persistence, trust, and ratings*, which are Phase C.
 - **Named guests.** Players get a display name; seats remain anonymous ids. Name length 2–20 chars after trim; empty falls back to a generated `Guest ####`.
-- **Naming UI (revised 2026-09-15): set in Profile, chess.com-style.** chess.com never asks for a username in the lobby or mid-game — you get one at signup and change it in Settings → Account. Outwit mirrors that: the name is edited in a **Display name** section on the Profile page (`src/components/DisplayNameForm.tsx`). The lobby and the game panel only *show* "Playing as X" with a **Change name** link, so naming has one predictable home and a player following an invite link can still reach it in one tap.
+- **One name per player (revised 2026-09-18).** Username and display name are **merged into a single visible name**: a signed-in account's unique username (synced across devices via `profiles.username`) IS the display name; guests keep a device-local name (chosen or auto `Guest ####`). There is no separate display name for accounts. `effectiveDisplayName()` resolves `accountUsername → displayName → guestName`.
+- **Naming UI (revised 2026-09-15): set in Profile, chess.com-style.** chess.com never asks for a username in the lobby or mid-game — you get one at signup and change it in Settings → Account. Outwit mirrors that: the name is edited in Profile's identity card (signed-in accounts edit their username; guests edit their display name). The lobby and the game panel only *show* "Playing as X" with a **Change name** link, so naming has one predictable home and a player following an invite link can still reach it in one tap.
 - **Invite codes:** generated rooms use a 6-character code from `ABCDEFGHJKMNPQRSTUVWXYZ23456789` (no `I`, `O`, `0`, `1`). Free-text room names continue to work.
 - **Persistent device identity** via `localStorage` + Web Locks: the primary tab of a browser uses the device id (so closing and reopening the tab keeps your seat within a room's 30-minute TTL); extra tabs get ephemeral ids so two tabs remain two players.
 - **Budget: free tier only.** Render free (sleeps when idle) + Supabase free (pauses after ~1 week of inactivity) when Phase C lands.
 - **Phase C accounts:** Supabase Auth with **email magic link and Google OAuth**. WS server verifies the Supabase JWT and keys seats by the authenticated user id.
-- **Display name is device-wide** (shared across tabs); the **seat id is per-tab**. This is deliberate: two tabs = two players, but the same human name.
+- **One name is device-wide + account-synced; the seat id is per-tab.** Two tabs = two players, but the same human name follows the account across devices. Guests keep a device-local name.
+- **No usernames for guests (2026-09-18).** Unique usernames (`profiles.username`) are an accounts feature; a guest seat id is device-bound, so a handle on it would be meaningless. The **country flag is the exception** — it's device-wide and works for guests too, matching the display name.
 
 ## Phase A — Milestones
 
@@ -78,6 +82,19 @@ Deployed verification (fill in per deploy):
 
 - Commit: `0a6a104` (deployed to Vercel + Render auto-deploy, 2026-09-15)
 - Production (`https://outwit-one.vercel.app`): created room `JSXTRW` from the lobby after setting "ProdAlice"; waiting card showed the code and full invite link. A second browser joined by link, set "ProdBob", and became Black; both names visible; waiting card disappeared. Closed/reopened the first tab → still White. Server `/stats`: `{rooms:1, players:2, moves:0, heapMB:10}` — stable.
+
+### M6.4 — Country flag (client + protocol) — Done (2026-09-18)
+
+Goal: players can show where they're from with a flag next to their name, chess.com-style.
+
+- [x] `src/utils/flags.ts`: `normalizeCountryCode`, `countryFlagEmoji` (regional-indicator derivation), `countryName`, and a curated `COUNTRIES` pick list (~60 entries).
+- [x] `profileStore`: `countryCode` (device-wide, persisted in `localStorage` like the name) + `setCountryCode`; `effectiveCountryCode()` helper. Guests can set a flag too — no account needed.
+- [x] `CountryFlag` component renders the emoji (or nothing when unset/unknown) and is safe to include unconditionally.
+- [x] `FlagPicker` settings card on the Profile page (type a 2-letter code or pick from the grid; re-selecting the current country clears it).
+- [x] Flag flows over the wire like the name: `countryCode` on `join-room` / `send-chat`, carried in `RoomPlayerSummary` / `ChatMessage`, broadcast in `room-update` + `game-state`, and refreshed on reconnect. Server: `ClientInfo`/`RoomPlayer` store it, new seats + rejoin paths carry it, chat includes it.
+- [x] Shown in: GamePage players list, ChatPanel messages, LobbyPage "Playing as", and the ProfilePage header.
+- [x] Flags persisted to `matches` on finish (`white_country` / `black_country`, new migration).
+- [x] Tests: `flags.test.ts`, `CountryFlag.test.tsx`, `FlagPicker.test.tsx`, `profileStore` flag cases, `matches` payload columns, and a server round-trip (`countryCode` join + reconnect refresh).
 
 ## Phase C — Accounts (in progress)
 
@@ -128,6 +145,26 @@ Deployed verification (fill in per deploy):
   - Note: the consent-screen config API (`clientauthconfig.googleapis.com/v1`) has no public discovery doc and could not be driven from the CLI; brand submission is console-only.
 - [ ] **Manual:** request a fresh magic link in production (the earlier one expired because `site_url` was still `localhost:3000` at the time; it is now `https://outwit-one.vercel.app`).
 
+### C7 — Unique usernames + flag persistence (accounts) — Done (2026-09-18)
+
+Goal: signed-in accounts get a searchable unique handle (the future friend key) and the flag persists cross-device.
+
+- [x] Migration `supabase/migrations/20260918090000_usernames_flags.sql`: `profiles.username` (unique partial index, format check `^[A-Za-z0-9_]+$`, 3–20 chars), `matches.white_country` / `matches.black_country` (2-letter code checks). **Requires `supabase db push`.**
+- [x] `src/services/profile.ts`: `normalizeUsername` / `isValidUsername`, `fetchMyProfile`, `fetchProfileByUsername` (the friend-search hook for later), `claimUsername` (owner-scoped update; maps the unique-violation to "already taken").
+- [x] `UsernameForm` on the Profile page, shown only when signed in: load current handle, claim/save with `@`-prefixed confirmation and inline errors.
+- [x] Design note (locked): **guests get no username** — a guest seat id is device-bound, so a handle on it would be meaningless. Friends will be accounts-only; the flag stays guest-friendly (device-wide like the name).
+- [x] Match recording persists the flags (server side); profile page reads them via the existing `matches` reader (columns added).
+
+### C8 — One name per player (username = display name) — Done (2026-09-18)
+
+Goal: eliminate the username/display-name split. Every player has exactly one visible name.
+
+- [x] `profileStore` gains `accountUsername` (device-wide cache of `profiles.username`, synced on sign-in) and `effectiveDisplayName()` resolves `accountUsername → displayName → guestName`.
+- [x] Sign-in syncs the account handle into the store (`services/account.ts` `loadAccountUsername`), claiming one from the email if the account has none; sign-out clears it.
+- [x] `IdentityCard` now shows one name and one edit trigger: signed-in accounts edit their username, guests their display name. The separate "@handle subtitle" is gone.
+- [x] Removed `seedDisplayNameFromAccount` (superseded by `suggestUsernameFromAccount`).
+- [x] Tests updated (`profileStore`, `IdentityCard`): account name wins on the wire, guest fallback, email suggestion, clear-on-sign-out.
+
 **Known behavior / gotchas:**
 - Redirect URLs are configured for production and localhost (5173 dev, 4173 preview). An earlier test email pointed at `http://localhost:3000` and expired — that was before `supabase config push` set `auth.site_url`; links now target the app.
 - Magic links are single-use and expire quickly; request a fresh one rather than reusing an old email.
@@ -143,9 +180,9 @@ Deployed verification (fill in per deploy):
 
 ## Out of Scope (Phase A)
 
-- Online match history / database writes.
-- Ratings, friend lists, direct invites, rematch.
-- Server-side auth or JWT verification.
+- Online match history / database writes — **done** (C4/C5).
+- Ratings, **friend lists**, direct invites, rematch — friends are the next step; the unique-username key (C7) is in place for it.
+- Server-side auth or JWT verification — **done** (C3).
 - Room persistence (Redis) and always-on hosting.
 - Time controls / clocks (separate open question in `ROADMAP.md`).
 
