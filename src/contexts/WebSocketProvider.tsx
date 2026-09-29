@@ -14,7 +14,7 @@ interface WebSocketContextValue {
 const WebSocketContext = createContext<WebSocketContextValue | null>(null);
 
 export function WebSocketProvider({ children }: { children: ReactNode }) {
-  const { updateGameState, addMessage, setActivePlayers, setLastError } = useGameStore();
+  const { updateGameState, addMessage, setActivePlayers, setLastError, setChatStatus } = useGameStore();
   const setConnectionId = useAuthStore((s) => s.setConnectionId);
   const [connection, setConnection] = useState<ConnectionState>(() =>
     webSocketService.getConnectionState()
@@ -53,6 +53,9 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
         case 'chat-message':
           addMessage(message.payload as never);
           break;
+        case 'chat-status':
+          setChatStatus(message.payload as never);
+          break;
         case 'room-update':
           setActivePlayers((message.payload as { players: never }).players);
           break;
@@ -71,7 +74,7 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
       unsubscribe();
       webSocketService.disconnect();
     };
-  }, [updateGameState, addMessage, setActivePlayers, setLastError, setConnectionId]);
+  }, [updateGameState, addMessage, setChatStatus, setActivePlayers, setLastError, setConnectionId]);
 
   // Sign-in/out changes the seat id. Re-bind only while waiting for an opponent
   // (≤1 player) — never yank a seat out of a game in progress; the new identity

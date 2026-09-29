@@ -61,7 +61,7 @@ describe('multiplayer hardening', () => {
     server.close();
   });
 
-  it('chat broadcasts to all room participants', async () => {
+  it('chat broadcasts to all room participants after mutual consent', async () => {
     const roomId = 'chat';
     const a = await connect();
     a.send('join-room', { roomId, userId: a.userId, username: 'Alice' });
@@ -69,6 +69,20 @@ describe('multiplayer hardening', () => {
     const b = await connect();
     b.send('join-room', { roomId, userId: b.userId, username: 'Bob' });
     await b.nextBy('room-update', (p) => p.players.length === 2);
+
+    // Without consent, chat is blocked.
+    a.send('send-chat', { roomId, userId: a.userId, username: 'Alice', text: 'hi' });
+    const blocked = await a.nextBy('error');
+    expect((blocked.payload as any).message).toMatch(/Chat requires/);
+
+    // Alice requests, Bob accepts; then messages flow.
+    a.send('chat-request', { roomId, userId: a.userId });
+    await a.nextBy('chat-status', (s) => s === 'pending');
+    await b.nextBy('chat-status', (s) => s === 'requested');
+
+    b.send('respond-chat-request', { roomId, userId: b.userId, accepted: true });
+    await a.nextBy('chat-status', (s) => s === 'accepted');
+    await b.nextBy('chat-status', (s) => s === 'accepted');
 
     a.send('send-chat', { roomId, userId: a.userId, username: 'Alice', text: 'hi' });
     await b.nextBy('chat-message', (m) => m.text === 'hi' && m.username === 'Alice');

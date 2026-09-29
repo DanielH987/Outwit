@@ -33,6 +33,14 @@ export interface ChatMessage {
   timestamp: string;
 }
 
+/** Consent state for the two seated players to chat with each other. */
+export type ChatConsentStatus =
+  | 'none' // No request has been made; players cannot chat yet.
+  | 'pending' // We sent a request; waiting for opponent to accept.
+  | 'requested' // Opponent sent us a request; we can accept or decline.
+  | 'accepted' // Both players agreed; chat is open.
+  | 'declined'; // One player declined; chat is closed for this room.
+
 export interface ServerMessage {
   type: ServerMessageType;
   payload: unknown;
@@ -80,6 +88,17 @@ export interface SendChatPayload {
   username: string | null;
   countryCode?: string | null;
   text: string;
+}
+
+export interface ChatRequestPayload {
+  roomId: string;
+  userId: string | null;
+}
+
+export interface RespondToChatRequestPayload {
+  roomId: string;
+  userId: string | null;
+  accepted: boolean;
 }
 
 export interface ResignPayload {
@@ -139,6 +158,8 @@ export interface GameStatePayload {
   pendingDrawFrom: PlayerId | null;
   /** Set while an opponent is disconnected and the forfeit timer is running. */
   forfeit: ForfeitCountdown | null;
+  /** Consent state for player-to-player chat in this room. */
+  chatStatus: ChatConsentStatus;
 }
 
 export interface ErrorPayload {
@@ -151,6 +172,7 @@ export type ServerMessageType =
   | 'room-update'
   | 'game-state'
   | 'chat-message'
+  | 'chat-status'
   | 'ping'
   | 'error';
 
@@ -159,6 +181,8 @@ export type ClientMessageType =
   | 'leave-room'
   | 'make-move'
   | 'send-chat'
+  | 'chat-request'
+  | 'respond-chat-request'
   | 'resign'
   | 'offer-draw'
   | 'respond-draw'

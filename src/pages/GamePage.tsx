@@ -192,7 +192,7 @@ function LocalGameView() {
  */
 function OnlineGameView({ roomId }: { roomId: string }) {
   const { gameState, selectedChipId, lastError } = useGameStore();
-  const { joinRoom, leaveRoom, makeMove, sendChat, resign: sendResign, offerDraw: sendOfferDraw, respondDraw } = useWebSocketActions();
+  const { joinRoom, leaveRoom, makeMove, sendChat, requestChat, respondChatRequest, resign: sendResign, offerDraw: sendOfferDraw, respondDraw } = useWebSocketActions();
   const { connection, retry } = useWebSocket();
   const { userId } = useAuthStore();
   const [dismissedResultKey, setDismissedResultKey] = useState<string | null>(null);
@@ -497,7 +497,13 @@ function OnlineGameView({ roomId }: { roomId: string }) {
           currentMoveIndex={replay.isReplaying ? replay.index : null}
           onSelectMove={replay.goTo}
         />
-        <ChatPanel roomId={roomId} sendChat={sendChat} mySide={mySide} />
+        <ChatPanel
+          roomId={roomId}
+          sendChat={sendChat}
+          requestChat={requestChat}
+          respondChatRequest={respondChatRequest}
+          mySide={mySide}
+        />
       </aside>
     </main>
   );

@@ -28,6 +28,7 @@ import {
 } from '../src/engine';
 import type { BoardState, GameResult, PlayerId } from '../src/engine';
 import type {
+  ChatConsentStatus,
   ClientMessage,
   ErrorPayload,
   GameStatePayload,
@@ -35,6 +36,7 @@ import type {
   MakeMovePayload,
   MoveRequest,
   OfferDrawPayload,
+  RespondToChatRequestPayload,
   RespondToDrawPayload,
   RoomPlayerSummary,
   RoomUpdatePayload,
@@ -81,6 +83,11 @@ interface Room {
   lastActivityAt: number;
   /** True once this room's finished game has been persisted (idempotency). */
   recorded: boolean;
+  /** Which seated player (if any) initiated the chat request, and whether both sides accepted. */
+  chat: {
+    requestedBy: PlayerId | null;
+    accepted: boolean;
+  };
 }
 
 const rooms = new Map<string, Room>();
@@ -136,6 +143,16 @@ function broadcastRoom(room: Room, message: ServerMessage) {
   }
 }
 
+function broadcastChatStatus(room: Room) {
+  for (const c of room.players.values()) {
+    const side = room.state.players.find((p) => p.userId === c.userId)?.side ?? null;
+    send(c.ws, {
+      type: 'chat-status',
+      payload: chatStatusFor(room, side),
+    });
+  }
+}
+
 function playerSummaries(room: Room): RoomPlayerSummary[] {
   return room.state.players.map((p) => ({
     userId: p.userId,
@@ -144,6 +161,14 @@ function playerSummaries(room: Room): RoomPlayerSummary[] {
     side: p.side,
     connected: p.connected,
   }));
+}
+
+function chatStatusFor(room: Room, viewerSide: PlayerId | null): ChatConsentStatus {
+  const { requestedBy, accepted } = room.chat;
+  if (accepted) return 'accepted';
+  if (!requestedBy) return 'none';
+  if (viewerSide === null) return 'none'; // spectators see no chat state
+  return requestedBy === viewerSide ? 'pending' : 'requested';
 }
 
 function roomStatePayload(room: Room): GameStatePayload {
@@ -166,6 +191,7 @@ function roomStatePayload(room: Room): GameStatePayload {
             graceSeconds: forfeitSeconds(),
           }
         : null,
+    chatStatus: 'none',
   };
 }
 
@@ -294,7 +320,13 @@ function createRoom(roomId: string): Room {
     forfeitDeadline: null,
     lastActivityAt: Date.now(),
     recorded: false,
+    chat: { requestedBy: null, accepted: false },
   };
+}
+
+function sendChatStatusToClient(room: Room, client: ClientInfo) {
+  const side = room.state.players.find((p) => p.userId === client.userId)?.side ?? null;
+  send(client.ws, { type: 'chat-status', payload: chatStatusFor(room, side) });
 }
 
 function joinRoom(client: ClientInfo, payload: JoinRoomPayload, verifiedSub?: string | null) {
@@ -324,6 +356,7 @@ function joinRoom(client: ClientInfo, payload: JoinRoomPayload, verifiedSub?: st
     client.userId = seatId;
     broadcastRoomUpdate(room);
     broadcastState(room);
+    sendChatStatusToClient(room, client);
     return;
   }
 
@@ -360,6 +393,7 @@ function joinRoom(client: ClientInfo, payload: JoinRoomPayload, verifiedSub?: st
 
   broadcastRoomUpdate(room);
   broadcastState(room);
+  sendChatStatusToClient(room, client);
 }
 
 function removeClientFromRoom(room: Room, client: ClientInfo) {
@@ -501,6 +535,15 @@ async function handleMessage(client: ClientInfo, message: ClientMessage) {
     case 'send-chat': {
       if (!room) return;
       const p = message.payload as SendChatPayload;
+      const side = room.state.players.find((pl) => pl.userId === client.userId)?.side ?? null;
+      if (side === null) {
+        error(client, 'Only seated players can chat.');
+        return;
+      }
+      if (!room.chat.accepted) {
+        error(client, 'Chat requires a mutual request first.');
+        return;
+      }
       broadcastRoom(room, {
         type: 'chat-message',
         payload: {
@@ -512,6 +555,45 @@ async function handleMessage(client: ClientInfo, message: ClientMessage) {
           timestamp: new Date().toISOString(),
         },
       });
+      return;
+    }
+    case 'chat-request': {
+      if (!room) return;
+      const side = room.state.players.find((pl) => pl.userId === client.userId)?.side ?? null;
+      if (side === null) {
+        error(client, 'Only seated players can request chat.');
+        return;
+      }
+      if (room.chat.requestedBy !== null || room.chat.accepted) {
+        error(client, 'A chat request is already active.');
+        return;
+      }
+      room.chat.requestedBy = side;
+      broadcastChatStatus(room);
+      return;
+    }
+    case 'respond-chat-request': {
+      if (!room) return;
+      const p = message.payload as RespondToChatRequestPayload;
+      const side = room.state.players.find((pl) => pl.userId === client.userId)?.side ?? null;
+      if (side === null) {
+        error(client, 'Only seated players can respond to chat requests.');
+        return;
+      }
+      if (room.chat.requestedBy === null) {
+        error(client, 'No chat request to respond to.');
+        return;
+      }
+      if (room.chat.requestedBy === side) {
+        error(client, "You can't respond to your own chat request.");
+        return;
+      }
+      if (p.accepted) {
+        room.chat.accepted = true;
+      } else {
+        room.chat.requestedBy = null;
+      }
+      broadcastChatStatus(room);
       return;
     }
     case 'resign':

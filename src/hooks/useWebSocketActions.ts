@@ -86,5 +86,21 @@ export function useWebSocketActions() {
     [send, getAuth]
   );
 
-  return { joinRoom, leaveRoom, makeMove, sendChat, resign, offerDraw, respondDraw };
+  const requestChat = useCallback(
+    (roomId: string) => {
+      const { userId } = getAuth();
+      send({ type: 'chat-request', payload: { roomId, userId } });
+    },
+    [send, getAuth]
+  );
+
+  const respondChatRequest = useCallback(
+    (roomId: string, accepted: boolean) => {
+      const { userId } = getAuth();
+      send({ type: 'respond-chat-request', payload: { roomId, userId, accepted } });
+    },
+    [send, getAuth]
+  );
+
+  return { joinRoom, leaveRoom, makeMove, sendChat, requestChat, respondChatRequest, resign, offerDraw, respondDraw };
 }

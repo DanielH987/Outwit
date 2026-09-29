@@ -236,4 +236,84 @@ describe('multiplayer server', () => {
 
     a.close();
   });
+
+  it('requires mutual consent before players can chat', async () => {
+    const roomId = 'chat-consent';
+    const a = await connect();
+    a.send('join-room', { roomId, userId: a.userId, username: 'A' });
+    await a.next('room-update');
+    await a.next('game-state');
+
+    const b = await connect();
+    b.send('join-room', { roomId, userId: b.userId, username: 'B' });
+    const bUpdate = await b.next('room-update');
+    await a.next('room-update'); // re-broadcast to A
+    const state = await b.next('game-state');
+    await a.next('game-state'); // re-broadcast to A
+
+    // Sanity: B's update should already list both players.
+    expect((bUpdate.payload as any).players).toHaveLength(2);
+
+    const players = (state.payload as any).players;
+    const aSide = players.find((p: any) => p.userId === a.userId)?.side;
+    const bSide = players.find((p: any) => p.userId === b.userId)?.side;
+    expect(aSide).not.toBeNull();
+    expect(bSide).not.toBeNull();
+
+    // Chat starts closed.
+    expect(await a.next('chat-status')).toMatchObject({ payload: 'none' });
+    expect(await b.next('chat-status')).toMatchObject({ payload: 'none' });
+
+    // Sending a message before consent is rejected.
+    a.send('send-chat', { roomId, userId: a.userId, username: 'A', text: 'hello' });
+    const blocked = await a.next('error');
+    expect((blocked.payload as any).message).toMatch(/Chat requires/);
+
+    // A asks to chat.
+    a.send('chat-request', { roomId, userId: a.userId });
+    expect(await a.next('chat-status')).toMatchObject({ payload: 'pending' });
+    expect(await b.next('chat-status')).toMatchObject({ payload: 'requested' });
+
+    // Messages still blocked until accepted.
+    a.send('send-chat', { roomId, userId: a.userId, username: 'A', text: 'hello again' });
+    const stillBlocked = await a.next('error');
+    expect((stillBlocked.payload as any).message).toMatch(/Chat requires/);
+
+    // B accepts.
+    b.send('respond-chat-request', { roomId, userId: b.userId, accepted: true });
+    expect(await a.next('chat-status')).toMatchObject({ payload: 'accepted' });
+    expect(await b.next('chat-status')).toMatchObject({ payload: 'accepted' });
+
+    // Now chat flows.
+    a.send('send-chat', { roomId, userId: a.userId, username: 'A', text: 'hi there' });
+    const msg = await b.next('chat-message');
+    expect((msg.payload as any).text).toBe('hi there');
+    await a.next('chat-message');
+
+    // Declining resets to none.
+    const roomId2 = 'chat-decline';
+    const c = await connect();
+    c.send('join-room', { roomId: roomId2, userId: c.userId, username: 'C' });
+    const d = await connect();
+    d.send('join-room', { roomId: roomId2, userId: d.userId, username: 'D' });
+    await c.next('room-update');
+    await d.next('room-update');
+    await c.next('game-state');
+    await d.next('game-state');
+    await c.next('chat-status');
+    await d.next('chat-status');
+
+    c.send('chat-request', { roomId: roomId2, userId: c.userId });
+    await c.next('chat-status');
+    await d.next('chat-status');
+
+    d.send('respond-chat-request', { roomId: roomId2, userId: d.userId, accepted: false });
+    expect(await c.next('chat-status')).toMatchObject({ payload: 'none' });
+    expect(await d.next('chat-status')).toMatchObject({ payload: 'none' });
+
+    a.close();
+    b.close();
+    c.close();
+    d.close();
+  });
 });

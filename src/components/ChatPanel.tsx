@@ -9,12 +9,15 @@ import { CountryFlag } from '@/components/CountryFlag';
 interface ChatPanelProps {
   roomId: string;
   sendChat: (roomId: string, text: string) => void;
+  requestChat: (roomId: string) => void;
+  respondChatRequest: (roomId: string, accepted: boolean) => void;
   /** For display: which side "we" are on, to label the chat box. */
   mySide: 'white' | 'black' | PlayerId | null;
 }
 
-export function ChatPanel({ roomId, sendChat, mySide }: ChatPanelProps) {
+export function ChatPanel({ roomId, sendChat, requestChat, respondChatRequest, mySide }: ChatPanelProps) {
   const messages = useGameStore((s) => s.messages);
+  const chatStatus = useGameStore((s) => s.chatStatus);
   const [draft, setDraft] = useState('');
 
   const submit = () => {
@@ -22,6 +25,76 @@ export function ChatPanel({ roomId, sendChat, mySide }: ChatPanelProps) {
     if (!text) return;
     sendChat(roomId, text);
     setDraft('');
+  };
+
+  const isPlayer = mySide !== null;
+
+  const renderControls = () => {
+    if (!isPlayer) {
+      return <p className="text-taupe">Chat is only available to seated players.</p>;
+    }
+    switch (chatStatus) {
+      case 'accepted':
+        return (
+          <div className="flex gap-2">
+            <input
+              className="flex-1 rounded-lg bg-primary px-3 py-2 text-parchment outline-none placeholder:text-taupe focus:ring-2 focus:ring-accent"
+              placeholder={`Chat as ${mySide}`}
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') submit(); }}
+              aria-label="Chat message"
+            />
+            <button
+              type="button"
+              onClick={submit}
+              className="rounded-lg bg-accent px-3 py-2 font-semibold text-primary transition hover:bg-accent-hover"
+            >
+              Send
+            </button>
+          </div>
+        );
+      case 'pending':
+        return (
+          <div className="flex items-center justify-between rounded-lg bg-primary/60 px-3 py-2 text-parchment/90">
+            <span>Chat request sent.</span>
+            <span className="text-xs text-taupe">Waiting for opponent…</span>
+          </div>
+        );
+      case 'requested':
+        return (
+          <div className="flex flex-col gap-2">
+            <p className="text-parchment/90">Your opponent wants to chat.</p>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => respondChatRequest(roomId, true)}
+                className="flex-1 rounded-lg bg-accent px-3 py-2 text-sm font-semibold text-primary transition hover:bg-accent-hover"
+              >
+                Accept
+              </button>
+              <button
+                type="button"
+                onClick={() => respondChatRequest(roomId, false)}
+                className="flex-1 rounded-lg border border-wood-edge px-3 py-2 text-sm transition hover:border-danger hover:text-danger"
+              >
+                Decline
+              </button>
+            </div>
+          </div>
+        );
+      case 'none':
+      default:
+        return (
+          <button
+            type="button"
+            onClick={() => requestChat(roomId)}
+            className="w-full rounded-lg bg-accent px-3 py-2 font-semibold text-primary transition hover:bg-accent-hover"
+          >
+            Ask to chat
+          </button>
+        );
+    }
   };
 
   return (
@@ -39,23 +112,7 @@ export function ChatPanel({ roomId, sendChat, mySide }: ChatPanelProps) {
           ))
         )}
       </div>
-      <div className="flex gap-2">
-        <input
-          className="flex-1 rounded-lg bg-primary px-3 py-2 text-parchment outline-none placeholder:text-taupe focus:ring-2 focus:ring-accent"
-          placeholder={mySide ? `Chat as ${mySide}` : 'Spectate chat'}
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter') submit(); }}
-          aria-label="Chat message"
-        />
-        <button
-          type="button"
-          onClick={submit}
-          className="rounded-lg bg-accent px-3 py-2 font-semibold text-primary transition hover:bg-accent-hover"
-        >
-          Send
-        </button>
-      </div>
+      {renderControls()}
     </div>
   );
 }
