@@ -88,6 +88,8 @@ interface Room {
     requestedBy: PlayerId | null;
     accepted: boolean;
   };
+  /** Per-seat chat rate-limit buckets: userId -> timestamps of accepted messages. */
+  chatBuckets: Map<string, number[]>;
 }
 
 const rooms = new Map<string, Room>();
@@ -299,6 +301,31 @@ function error(target: ClientInfo | WebSocket, message: string) {
   send(target, { type: 'error', payload: { message } satisfies ErrorPayload });
 }
 
+const MAX_CHAT_LENGTH = 500;
+const CHAT_RATE_LIMIT_WINDOW_MS = 10_000;
+const CHAT_RATE_LIMIT_MAX = 5;
+
+function normalizeChat(text: string): string | null {
+  const trimmed = text.replace(/\s+/g, ' ').trim();
+  if (trimmed.length === 0) return null;
+  if (trimmed.length > MAX_CHAT_LENGTH) return null;
+  return trimmed;
+}
+
+function isChatThrottled(room: Room, userId: string, now: number): boolean {
+  let bucket = room.chatBuckets.get(userId);
+  if (!bucket) {
+    bucket = [];
+    room.chatBuckets.set(userId, bucket);
+  }
+  const windowStart = now - CHAT_RATE_LIMIT_WINDOW_MS;
+  const recent = bucket.filter((t) => t > windowStart);
+  if (recent.length >= CHAT_RATE_LIMIT_MAX) return true;
+  recent.push(now);
+  room.chatBuckets.set(userId, recent);
+  return false;
+}
+
 function createRoom(roomId: string): Room {
   return {
     id: roomId,
@@ -320,6 +347,7 @@ function createRoom(roomId: string): Room {
     lastActivityAt: Date.now(),
     recorded: false,
     chat: { requestedBy: null, accepted: false },
+    chatBuckets: new Map(),
   };
 }
 
@@ -543,15 +571,25 @@ async function handleMessage(client: ClientInfo, message: ClientMessage) {
         error(client, 'Chat requires a mutual request first.');
         return;
       }
+      const text = normalizeChat(p.text);
+      if (text === null) {
+        error(client, `Chat messages must be 1-${MAX_CHAT_LENGTH} characters after trimming.`);
+        return;
+      }
+      const now = Date.now();
+      if (isChatThrottled(room, client.userId, now)) {
+        error(client, 'You are sending chat messages too quickly. Please slow down.');
+        return;
+      }
       broadcastRoom(room, {
         type: 'chat-message',
         payload: {
-          id: `${client.userId}-${Date.now()}`,
+          id: `${client.userId}-${now}`,
           senderId: client.userId,
           username: p.username ?? client.username ?? 'Anon',
           countryCode: p.countryCode ?? client.countryCode ?? null,
-          text: p.text,
-          timestamp: new Date().toISOString(),
+          text,
+          timestamp: new Date(now).toISOString(),
         },
       });
       return;

@@ -20,10 +20,12 @@ export function ChatPanel({ roomId, sendChat, requestChat, respondChatRequest, m
   const chatStatus = useGameStore((s) => s.chatStatus);
   const [draft, setDraft] = useState('');
 
+  const MAX_LENGTH = 500;
+
   const submit = () => {
     const text = draft.trim();
     if (!text) return;
-    sendChat(roomId, text);
+    sendChat(roomId, text.slice(0, MAX_LENGTH));
     setDraft('');
   };
 
@@ -41,6 +43,7 @@ export function ChatPanel({ roomId, sendChat, requestChat, respondChatRequest, m
               className="flex-1 rounded-lg bg-primary px-3 py-2 text-parchment outline-none placeholder:text-taupe focus:ring-2 focus:ring-accent"
               placeholder={`Chat as ${mySide}`}
               value={draft}
+              maxLength={MAX_LENGTH}
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') submit(); }}
               aria-label="Chat message"

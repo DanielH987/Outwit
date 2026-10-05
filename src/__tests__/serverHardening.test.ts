@@ -86,6 +86,32 @@ describe('multiplayer hardening', () => {
 
     a.send('send-chat', { roomId, userId: a.userId, username: 'Alice', text: 'hi' });
     await b.nextBy('chat-message', (m) => m.text === 'hi' && m.username === 'Alice');
+
+    // Over-long messages are rejected.
+    a.send('send-chat', { roomId, userId: a.userId, username: 'Alice', text: 'x'.repeat(501) });
+    const tooLong = await a.nextBy('error');
+    expect((tooLong.payload as any).message).toMatch(/500 characters/);
+
+    // Rate limit: a burst of messages is throttled.
+    a.send('send-chat', { roomId, userId: a.userId, username: 'Alice', text: '1' });
+    a.send('send-chat', { roomId, userId: a.userId, username: 'Alice', text: '2' });
+    a.send('send-chat', { roomId, userId: a.userId, username: 'Alice', text: '3' });
+    a.send('send-chat', { roomId, userId: a.userId, username: 'Alice', text: '4' });
+    a.send('send-chat', { roomId, userId: a.userId, username: 'Alice', text: '5' });
+    a.send('send-chat', { roomId, userId: a.userId, username: 'Alice', text: '6' });
+    let accepted = 0;
+    let throttled = 0;
+    for (let i = 0; i < 6; i++) {
+      const msg = await a.nextBy('chat-message', () => true).catch(async () => {
+        const err = await a.nextBy('error');
+        return { type: 'error', payload: err.payload };
+      });
+      if (msg.type === 'chat-message') accepted++;
+      else throttled++;
+    }
+    expect(accepted).toBeLessThanOrEqual(5);
+    expect(throttled).toBeGreaterThanOrEqual(1);
+
     a.closeNow();
     b.closeNow();
   });
