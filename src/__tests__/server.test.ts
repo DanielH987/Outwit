@@ -284,6 +284,14 @@ describe('multiplayer server', () => {
     expect(await a.next('chat-status')).toMatchObject({ payload: 'accepted' });
     expect(await b.next('chat-status')).toMatchObject({ payload: 'accepted' });
 
+    // A state broadcast (e.g. after a move) must not clobber the accepted
+    // chat status back to 'none'.
+    a.send('make-move', { roomId, userId: a.userId, move: { chipId: 'white-1', to: { x: 0, y: 6 } } });
+    const moveStateA = await a.next('game-state');
+    const moveStateB = await b.next('game-state');
+    expect((moveStateA.payload as any)).not.toHaveProperty('chatStatus');
+    expect((moveStateB.payload as any)).not.toHaveProperty('chatStatus');
+
     // Now chat flows.
     a.send('send-chat', { roomId, userId: a.userId, username: 'A', text: 'hi there' });
     const msg = await b.next('chat-message');

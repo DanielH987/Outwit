@@ -158,8 +158,6 @@ export interface GameStatePayload {
   pendingDrawFrom: PlayerId | null;
   /** Set while an opponent is disconnected and the forfeit timer is running. */
   forfeit: ForfeitCountdown | null;
-  /** Consent state for player-to-player chat in this room. */
-  chatStatus: ChatConsentStatus;
 }
 
 export interface ErrorPayload {

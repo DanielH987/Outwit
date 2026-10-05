@@ -191,7 +191,6 @@ function roomStatePayload(room: Room): GameStatePayload {
             graceSeconds: forfeitSeconds(),
           }
         : null,
-    chatStatus: 'none',
   };
 }
 

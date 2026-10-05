@@ -68,7 +68,6 @@ describe('WebSocketProvider error clearing', () => {
           result: { status: 'in-progress', winner: null, reason: null },
           pendingDrawFrom: null,
           forfeit: null,
-          chatStatus: 'none',
         },
       });
     });
