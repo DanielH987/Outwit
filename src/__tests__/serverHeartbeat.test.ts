@@ -109,7 +109,7 @@ describe('server heartbeat', () => {
     const b = (state.payload as any).players.find((p: any) => p.userId === 'B');
     expect(b.connected).toBe(false);
     expect((state.payload as any).forfeit).not.toBeNull();
-    expect((state.payload as any).forfeit.side).toBe('black');
+    expect((state.payload as any).forfeit.side).toBe(b.side);
 
     // The healthy client is still alive and answering — not terminated.
     expect(a.readyState).toBe(WebSocket.OPEN);

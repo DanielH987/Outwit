@@ -186,11 +186,14 @@ describe('multiplayer hardening', () => {
     // A second socket re-binds the same seat (tab refresh / reconnect).
     const b2 = await connect();
     b2.send('join-room', { roomId, userId: b1.userId, username: 'B' });
+    // Wait until the replacement is fully bound before closing the old socket.
     await b2.nextBy('room-update');
+    await b2.nextBy('game-state');
+    await new Promise((r) => setTimeout(r, 100));
 
     // The old socket's close arrives afterwards.
     b1.closeNow();
-    await new Promise((r) => setTimeout(r, 200));
+    await new Promise((r) => setTimeout(r, 400));
 
     // A moves; the new socket must still receive broadcasts...
     a.send('make-move', { roomId, userId: a.userId, move: { chipId: aChip, to: aSide === 'white' ? { x: 0, y: 6 } : { x: 8, y: 3 } } });
