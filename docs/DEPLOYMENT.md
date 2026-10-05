@@ -1,15 +1,15 @@
 # Outwit — Deployment Plan
 
-**Status:** Implemented and fully deployed. Client on Vercel, WebSocket server on **Northflank** (migrated from Render 2026-09-16). This document is the handoff spec; any agent should be able to resume without prior chat context.
+**Status:** Implemented and fully deployed. Client on Vercel, WebSocket server on **Render**. This document is the handoff spec; any agent should be able to resume without prior chat context.
 
 > **Next phase:** identity & accounts (named guests, invite links, persistent device identity; later Supabase accounts). See [`docs/ACCOUNTS.md`](ACCOUNTS.md).
 
 ## Handoff Summary (read first)
 
 - **Live frontend:** `https://outwit-one.vercel.app` (Vercel project `outwit`, CLI-linked at `.vercel/project.json`). Auto-deploys on push to `main`.
-- **Live server:** `https://http--outwit-server--clnlhfn4kk5l.code.run` (Northflank project `outwit`, service `outwit-server`, free **Developer Sandbox** plan `nf-compute-20` = 0.2 vCPU / 512 MB, region `us-central`, container port 3001, WS path `/ws`, health `/`). **Always-on — no sleeping and no cold start**, unlike Render.
-- **Env wiring:** `VITE_WS_URL=wss://http--outwit-server--clnlhfn4kk5l.code.run` on Vercel (production, build-time); Northflank injects its own `PORT`; runtime env has `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `OUTWIT_FORFEIT_SECONDS=60`.
-- **Fallback host:** the Render service (`srv-dajpo9m7bikc73d1ge8g`, `outwit-server.onrender.com`) is **left configured**. Its free bandwidth resets on the 1st of each month; switching back is one `VITE_WS_URL` change plus a Vercel redeploy.
+- **Live server:** `https://outwit-server.onrender.com` (Render service `srv-dajpo9m7bikc73d1ge8g`, free web service, region `oregon`, WS path `/ws`, health `/`). Render's free tier sleeps after ~15 min idle and has a 5 GB/month outbound bandwidth limit.
+- **Env wiring:** `VITE_WS_URL=wss://outwit-server.onrender.com` on Vercel (production, build-time); Render injects its own `PORT`; runtime env has `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `OUTWIT_FORFEIT_SECONDS=30`.
+- **Fallback host:** the Northflank service (`https://http--outwit-server--clnlhfn4kk5l.code.run`) is **left configured** as an always-on fallback. Switching to it is one `VITE_WS_URL` change plus a Vercel redeploy.
 - **Remaining work:** optional M6 (custom domain, auto-deploy wiring is done; room persistence; time controls).
 
 **How to resume:** find the first unchecked milestone below; implement; verify with that milestone's checks; update checkbox; commit with a milestone message. Work on `main`.
@@ -57,12 +57,12 @@ Browser ── HTTPS ──▶ Vercel (static Vite build, SPA rewrites)
 
 | Variable | Where | Value | Notes |
 | --- | --- | --- | --- |
-| `VITE_WS_URL` | Vercel, production | `wss://http--outwit-server--clnlhfn4kk5l.code.run` | Baked in at build time; **no** trailing `/ws` (client appends it). Requires redeploy to take effect. |
+| `VITE_WS_URL` | Vercel, production | `wss://outwit-server.onrender.com` | Baked in at build time; **no** trailing `/ws` (client appends it). Requires redeploy to take effect. |
 | `VITE_SUPABASE_URL` | Vercel, production | `https://hqgamvpcowjjgxkchtzu.supabase.co` | Client auth + match history (Phase C). Baked in at build time. |
 | `VITE_SUPABASE_ANON_KEY` | Vercel, production | anon JWT | Public by design (ships in the bundle). Never use the service-role key here. |
-| `SUPABASE_URL` | Northflank | `https://hqgamvpcowjjgxkchtzu.supabase.co` | Enables JWT verification + match recording. |
-| `SUPABASE_SERVICE_ROLE_KEY` | Northflank | service-role JWT | **Secret.** Server-only; grants write access to `matches`. |
-| `OUTWIT_FORFEIT_SECONDS` | Northflank | `60` | Disconnect-forfeit grace period. Code default is 30s; Northflank sets 60. |
+| `SUPABASE_URL` | Render | `https://hqgamvpcowjjgxkchtzu.supabase.co` | Enables JWT verification + match recording. |
+| `SUPABASE_SERVICE_ROLE_KEY` | Render | service-role JWT | **Secret.** Server-only; grants write access to `matches`. |
+| `OUTWIT_FORFEIT_SECONDS` | Render | `30` | Disconnect-forfeit grace period. Matches the code default. |
 | `OUTWIT_ROOM_TTL_SECONDS` | either host (optional) | `1800` | How long an abandoned room (no connected clients) is kept for reconnects before GC. Defaults to 1800 (30 min). |
 | `OUTWIT_PORT` / `PORT` | local only | e.g. `3001` | Optional local port override. Both hosts inject `PORT`; the server reads `PORT` first. |
 
@@ -86,10 +86,10 @@ Render's free Hobby workspace includes **5 GB of outbound bandwidth per month** 
 | Piece | Trigger | What happens | Cost/limit |
 | --- | --- | --- | --- |
 | **Frontend (Vercel)** | **Git push to `main`** (auto-deploy, connected 2026-09-16) — or manual `npx vercel@latest --prod --yes` | Vercel builds `npm run build` itself, uploads `dist/`, aliases `outwit-one.vercel.app`. PRs get preview URLs. | Hobby: 100 deploys/day, 1 concurrent build, 100 MB CLI upload cap. Deploy bandwidth is Vercel's, not Render's. |
-| **Backend (Render)** | Git push to `main`, **filtered** to server-relevant paths (see below) | Render clones the repo, runs `npm ci && npm run build:server`, then `npm run start:server`. | No deploy-count limit; outbound bytes only. ~1.5 min per build. |
+| **Backend (Render)** | Git push to `main`, **filtered** to server-relevant paths (see below) | Render clones the repo, runs `npm ci && npm run build:server`, then `npm run start:server`. | No deploy-count limit; outbound bytes only. ~1.5 min per build. ~30–60 s cold start after idle sleep. |
 | **Database (Supabase)** | `supabase db push` / `config push` (manual, rare) | Applies migrations / auth config to the hosted project. | Free tier. |
 
-Both deploy paths are independent — a frontend deploy does **not** trigger a Render build, and a Render build does not touch Vercel. A single `git push` fans out to both, each with its own filter.
+Both deploy paths are independent — a frontend deploy does **not** trigger a Render build, and a Render build does not touch Vercel. A single `git push` fans out to both, each with its own filter. Server-relevant files: `server/**`, `src/engine/**`, `src/types/**`, `package.json`, `package-lock.json`.
 
 ### Pain points (resolved 2026-09-16)
 
@@ -97,7 +97,7 @@ Both deploy paths are independent — a frontend deploy does **not** trigger a R
 2. ~~**Vercel was CLI-only** — no preview deployments, no automatic deploy on push.~~ Fixed: the GitHub repo link was `sourceless`; re-linking enabled push-to-deploy and PR previews. Verified with a git-sourced production deployment.
 3. **Nothing checks the other side.** A frontend change that requires a server protocol change can ship before the server does (or vice versa), briefly breaking online play. Mitigation is ordering discipline (see #4 below), not tooling.
 
-### Recommended improvements (implemented 2026-09-16)
+### Recommended improvements (implemented 2026-09-16, live server restored to Render 2026-10-05)
 
 1. **Render build filters — DONE.** The service now has:
    - `paths`: `server/**`, `src/engine/**`, `src/types/**`, `package.json`, `package-lock.json`
@@ -105,7 +105,7 @@ Both deploy paths are independent — a frontend deploy does **not** trigger a R
 
    So a frontend- or docs-only push no longer rebuilds the server. Set via the Render API (a top-level `buildFilter` field — **not** nested under `serviceDetails`, which fails silently):
    ```bash
-   curl -X PATCH https://api.render.com/v1/services/<id> \
+   curl -X PATCH https://api.render.com/v1/services/srv-dajpo9m7bikc73d1ge8g \
      -H "Authorization: Bearer $RENDER_API_KEY" -H 'Content-Type: application/json' \
      -d '{"buildFilter":{"paths":["server/**","src/engine/**","src/types/**","package.json","package-lock.json"],"ignoredPaths":["docs/**","**/*.md","src/components/**","src/pages/**","src/stores/**","src/hooks/**","src/contexts/**","src/services/**","src/utils/**","public/**"]}}'
    ```
@@ -120,9 +120,10 @@ Both deploy paths are independent — a frontend deploy does **not** trigger a R
    ```
    **Verified:** a push produced a git-sourced production deployment (commit `2ecee9e`, `source: git`, READY). PR previews are enabled (`gitComments.onPullRequest: true`).
 
-3. **Batch deploys** — not a bandwidth issue (deploys cost 0 outbound) but a *build-minutes* and *focus* one: commit meaningful units, not every doc tweak.
-4. **Order protocol changes** — when a change touches `src/types/index.ts` (shared wire types), deploy the **server first** (backward-compatible: old clients ignore new fields), then the client. Never remove a field in the same deploy that stops sending it.
-5. **Optional: CI gates** — a GitHub Action running `npm test && npm run lint && npm run build` on PRs, since that's only checked locally now.
+3. **Render as live server — RESTORED 2026-10-05.** After fixing the chat-status clobber bug, the server was switched back to Render (`wss://outwit-server.onrender.com`) and the Vercel `VITE_WS_URL` production env var was updated. Northflank remains an always-on fallback if Render sleeps or hits its bandwidth limit.
+4. **Batch deploys** — not a bandwidth issue (deploys cost 0 outbound) but a *build-minutes* and *focus* one: commit meaningful units, not every doc tweak.
+5. **Order protocol changes** — when a change touches `src/types/index.ts` (shared wire types), deploy the **server first** (backward-compatible: old clients ignore new fields), then the client. Never remove a field in the same deploy that stops sending it.
+6. **Optional: CI gates** — a GitHub Action running `npm test && npm run lint && npm run build` on PRs, since that's only checked locally now.
 
 ### Day-to-day workflow (after these changes)
 
@@ -140,7 +141,7 @@ curl -s -o /dev/null -w "%{http_code}\n" https://outwit-one.vercel.app/
 curl -s https://outwit-server.onrender.com/stats
 ```
 
-Manual CLI deploys (`npx vercel@latest --prod --yes`) still work and are useful when you want to ship the client without a commit.
+Manual CLI deploys (`npx vercel@latest --prod --yes`) still work and are useful when you want to ship the client without a commit. After changing `VITE_WS_URL`, run `npx vercel@latest --prod` to bake the new URL into the bundle.
 
 ## Development Workflow: Branch → Preview → Prod
 
@@ -196,7 +197,7 @@ feature branch  →  Vercel preview URL  +  Supabase dev branch
    to prod (`npx supabase db push`).
 
 6. **Server** — tested locally (`npm run server`); no separate dev deployment.
-   Northflank rebuilds on push to `main` if server-relevant files changed
+   Render rebuilds on push to `main` if server-relevant files changed
    (build filters already configured).
 
 ### Notes
@@ -367,41 +368,38 @@ M1 implementation notes: `src/services/websocket.ts` normalizes `VITE_WS_URL` (s
 ### M6 — Optional Polish
 
 - [x] Auto-deploy: **Render** rebuilds on pushes touching `server/`, `src/engine/`, `src/types/`, or `package*.json` (build filters set 2026-09-16); **Vercel** auto-deploys on every push to `main` (GitHub link fixed 2026-09-16). Manual CLI deploys still work.
-- [ ] Custom domain (if desired), configured in Vercel and optionally Northflank.
-- [x] Keep-alive / no cold starts: replaced Render with **Northflank Developer Sandbox** (`nf-compute-20`, always-on) on 2026-09-16. See the migration note below.
+- [ ] Custom domain (if desired), configured in Vercel and optionally the server host.
+- [ ] Keep-alive / no cold starts: currently on Render free tier (sleeps after idle). Northflank Developer Sandbox (`nf-compute-20`, always-on) remains configured as a fallback; switch via `VITE_WS_URL` if the Render cold start becomes painful.
 - [ ] Room persistence (e.g. Upstash Redis) — rooms are still in-memory, so a restart/deploy drops live games. Separate effort; see `docs/ACCOUNTS.md` Phase C notes.
 - [ ] Clock/time-control messages once a time-control rule exists.
 
-## Server Migration: Render → Northflank (2026-09-16)
+## Server Hosting History
 
-Render's free tier suspended the service after the workspace hit its **5 GB/month outbound bandwidth** limit (root cause: the infinite join/broadcast loop bug; see the Bandwidth Budget section). Rather than wait for the monthly reset with 30–60 s cold starts, the server moved to **Northflank**, whose free Developer Sandbox is **always-on**.
+### Render → Northflank (2026-09-16)
 
-**What was created**
+Render's free tier suspended the service after the workspace hit its **5 GB/month outbound bandwidth** limit (root cause: the infinite join/broadcast loop bug; see the Bandwidth Budget section). As a stopgap, the server moved to **Northflank**, whose free Developer Sandbox is **always-on**.
 
-- Project `outwit` (region `us-central`), service `outwit-server`, type **combined** (build + deploy), plan `nf-compute-20` (0.2 vCPU / 512 MB).
-- Build: Dockerfile at `/Dockerfile` (multi-stage: esbuild-bundles the server, runtime image has production deps only). Committed as `37096e7` with `.dockerignore`.
-- Networking: container port `3001`, **public**, protocol HTTP → public URL `https://http--outwit-server--clnlhfn4kk5l.code.run` (DNS `http--outwit-server--clnlhfn4kk5l.code.run`), plus a readiness probe `GET /` every 15 s.
-- Runtime env: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `OUTWIT_FORFEIT_SECONDS=60`.
-- Vercel: `VITE_WS_URL` set to the Northflank `wss://` URL (production) and the client redeployed.
+- Northflank project `outwit`, service `outwit-server`, plan `nf-compute-20`, URL `https://http--outwit-server--clnlhfn4kk5l.code.run`.
+- Build via `Dockerfile`; runtime env `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `OUTWIT_FORFEIT_SECONDS=60`.
 
-**Verified after cutover** (two real browsers against production): white/black seat assignment, display names, a move syncing to the opponent, chat delivery, resignation → correct per-perspective headlines ("You lost" / "You won"), and the match recorded in Supabase with the right names/result. Server `/stats` responded normally.
+### Northflank → Render (2026-10-05)
 
-**Notes for future agents**
+After the chat-status clobber bug was fixed and bandwidth usage was under control, the live server was switched back to **Render** (`wss://outwit-server.onrender.com`) and Vercel's `VITE_WS_URL` was updated. Northflank remains configured as an always-on fallback.
 
-- The CLI is `northflank` (`npm i -g @northflank/cli`), logged in via browser; config lives at `~/.northflank/config.json`. `northflank get service` is interactive-only — read details via `northflank list services --project outwit --output json`, or hit `https://api.northflank.com/v1/projects/outwit/services/outwit-server` with the CLI token.
-- The CLI **requires `--project`** for project-scoped commands, and the create body requires a `successThreshold` on readiness probes and a top-level `region`/`clusterId` when creating a project.
-- Northflank requires a **payment method on file** before any resource can be created, even on the free plan (identity verification; the card is not charged for free-tier usage).
-- There is **no hard spend cap** on Northflank. Controls available: the free plan's fixed allowances (2 services, `nf-compute-20`), **billing alerts** (notifications), and **billing thresholds** ($50/$100/$250/$500 — these *invoice* when reached, they do not block spending). The effective safety net is the plan: the service is pinned to the free `nf-compute-20` deployment plan, so cost stays $0 unless the plan is changed.
-- To add a custom domain: Northflank → project → service → port → add domain, then point DNS at it.
+**Switching between hosts**
 
-**Rollback to Render** (still configured, free bandwidth resets monthly):
+- **To Render (live):**
+  ```bash
+  printf 'wss://outwit-server.onrender.com' | npx vercel@latest env add VITE_WS_URL production --force --type config
+  npx vercel@latest --prod --yes
+  ```
+  If the Render service is suspended, resume it from the dashboard: `https://dashboard.render.com/web/srv-dajpo9m7bikc73d1ge8g`.
 
-```bash
-printf 'wss://outwit-server.onrender.com' | npx vercel@latest env add VITE_WS_URL production --force --type config
-npx vercel@latest --prod --yes
-```
-
-Then resume the Render service from the dashboard (`https://dashboard.render.com/web/srv-dajpo9m7bikc73d1ge8g`) — the card/billing block there is separate from Northflank.
+- **To Northflank (fallback):**
+  ```bash
+  printf 'wss://http--outwit-server--clnlhfn4kk5l.code.run' | npx vercel@latest env add VITE_WS_URL production --force --type config
+  npx vercel@latest --prod --yes
+  ```
 
 ## CLI Reference
 
@@ -429,10 +427,10 @@ Useful commands:
 
 ## Risks and Troubleshooting
 
-- **Render free tier sleeps** after ~15 idle minutes: 30-60 s cold start and rooms are lost. Live games keep it awake.
+- **Render free tier sleeps** after ~15 idle minutes: 30-60 s cold start and rooms are lost. Live games keep it awake. If the service is suspended again, switch to the Northflank fallback.
 - **In-memory rooms** vanish on deploy/restart; accepted for the prototype.
 - **Service worker staleness** after a frontend redeploy: `autoUpdate` is on, but a hard refresh may be needed once.
-- **`vercel env add` needs a redeploy** to affect the bundle (build-time variable).
+- **`vercel env add` needs a redeploy** to affect the bundle (build-time variable). Run `npx vercel@latest --prod --yes` after changing `VITE_WS_URL`.
 - **WSS handshake fails while `curl /` succeeds:** confirm the path is exactly `/ws` on both ends and that `VITE_WS_URL` has no trailing slash/`/ws` duplication. The client normalizes trailing slashes but not a missing `wss://` scheme.
 - **`server/dist/` is gitignored** and built on Render via `npm run build:server`; the start command is `npm run start:server` (= `node server/dist/index.js`).
 - **`node server/index.ts` fails with `ERR_MODULE_NOT_FOUND`:** expected on Node 24 due to extensionless engine imports; use the bundle (`build:server` + `start:server`). `tsx server/index.ts` still works for local dev.
