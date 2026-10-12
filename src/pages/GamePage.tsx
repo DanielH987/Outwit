@@ -21,6 +21,7 @@ import { useWebSocket } from '@/contexts/WebSocketProvider';
 import { useAuthStore } from '@/stores';
 import { useGameLeaveWarning } from '@/hooks/useGameLeaveWarning';
 import { useReplay } from '@/hooks/useReplay';
+import { trackEvent } from '@/services/analytics';
 import type { Position } from '@/engine';
 
 const LOCAL_ID = 'local';
@@ -61,6 +62,26 @@ function LocalGameView() {
   const replay = useReplay(moveHistory);
   const localLeave = usePendingLeave();
   useGameLeaveWarning(result.status === 'in-progress' && !replay.isReplaying);
+
+  // Analytics: track the first move and the end of local games once per game.
+  const localFirstMoveTracked = useRef(false);
+  const localGameOverTracked = useRef(false);
+  useEffect(() => {
+    if (moveHistory.length > 0 && !localFirstMoveTracked.current) {
+      localFirstMoveTracked.current = true;
+      trackEvent('local_first_move');
+    }
+  }, [moveHistory.length]);
+  useEffect(() => {
+    if (result.status === 'finished' && !localGameOverTracked.current) {
+      localGameOverTracked.current = true;
+      trackEvent('local_game_over', {
+        reason: result.reason ?? 'unknown',
+        winner: result.winner ?? 'draw',
+        move_count: moveHistory.length,
+      });
+    }
+  }, [result, moveHistory.length]);
 
   // While reviewing, the board shows a reconstructed past position and input is
   // disabled — nothing about the real game changes.
@@ -201,10 +222,22 @@ function OnlineGameView({ roomId }: { roomId: string }) {
   const navigate = useNavigate();
   const onlineLeave = usePendingLeave();
 
+  // Analytics refs: ensure funnel events fire once per online game.
+  const bothSeatedTracked = useRef(false);
+  const firstMoveTracked = useRef(false);
+  const gameOverTracked = useRef(false);
+
   useEffect(() => {
     joinRoom(roomId);
     return () => leaveRoom(roomId);
   }, [roomId, joinRoom, leaveRoom]);
+
+  // Reset per-game analytics refs when entering a new room.
+  useEffect(() => {
+    bothSeatedTracked.current = false;
+    firstMoveTracked.current = false;
+    gameOverTracked.current = false;
+  }, [roomId]);
 
   // Clear chat and game state when entering a new room so messages from a
   // previous game don't carry over.
@@ -229,6 +262,10 @@ function OnlineGameView({ roomId }: { roomId: string }) {
       faceOffShownRef.current = true;
       setShowFaceOff(true);
     }
+    if (bothSeated && noMoves && inProgress && !bothSeatedTracked.current) {
+      bothSeatedTracked.current = true;
+      trackEvent('online_both_seated');
+    }
   }, [gameState]);
 
   // Reset the face-off ref when entering a new room.
@@ -236,6 +273,14 @@ function OnlineGameView({ roomId }: { roomId: string }) {
     faceOffShownRef.current = false;
     setShowFaceOff(false);
   }, [roomId]);
+
+  // Analytics: first move in online play.
+  useEffect(() => {
+    if (gameState?.moveHistory.length === 1 && !firstMoveTracked.current) {
+      firstMoveTracked.current = true;
+      trackEvent('online_first_move');
+    }
+  }, [gameState?.moveHistory.length]);
 
   // "Me" is the seat whose userId matches our stable client identity. The
   // server-assigned connectionId changes on every reconnect and must not be
@@ -308,6 +353,18 @@ function OnlineGameView({ roomId }: { roomId: string }) {
     ? `${finishedResult.reason}:${finishedResult.winner ?? 'draw'}:${gameState?.moveHistory.length ?? 0}`
     : null;
   const showGameOver = resultKey !== null && resultKey !== dismissedResultKey;
+
+  // Analytics: online game over.
+  useEffect(() => {
+    if (finishedResult && !gameOverTracked.current) {
+      gameOverTracked.current = true;
+      trackEvent('online_game_over', {
+        reason: finishedResult.reason ?? 'unknown',
+        winner: finishedResult.winner ?? 'draw',
+        move_count: gameState?.moveHistory.length ?? 0,
+      });
+    }
+  }, [finishedResult, gameState?.moveHistory.length]);
 
   if (!gameState) {
     return (
@@ -439,7 +496,10 @@ function OnlineGameView({ roomId }: { roomId: string }) {
             <button
               type="button"
               className="flex-1 rounded-lg border border-wood-edge px-3 py-2 text-sm transition hover:border-danger hover:text-danger"
-              onClick={() => sendResign(roomId)}
+              onClick={() => {
+                trackEvent('resign');
+                sendResign(roomId);
+              }}
             >
               Resign
             </button>
@@ -448,14 +508,20 @@ function OnlineGameView({ roomId }: { roomId: string }) {
                 <button
                   type="button"
                   className="flex-1 rounded-lg bg-accent px-3 py-2 text-sm font-semibold text-primary transition hover:bg-accent-hover"
-                  onClick={() => respondDraw(roomId, true)}
+                  onClick={() => {
+                    trackEvent('accept_draw');
+                    respondDraw(roomId, true);
+                  }}
                 >
                   Accept draw
                 </button>
                 <button
                   type="button"
                   className="flex-1 rounded-lg border border-wood-edge px-3 py-2 text-sm transition hover:border-danger hover:text-danger"
-                  onClick={() => respondDraw(roomId, false)}
+                  onClick={() => {
+                    trackEvent('decline_draw');
+                    respondDraw(roomId, false);
+                  }}
                 >
                   Decline
                 </button>
@@ -465,7 +531,10 @@ function OnlineGameView({ roomId }: { roomId: string }) {
                 type="button"
                 className="flex-1 rounded-lg border border-wood-edge px-3 py-2 text-sm transition hover:border-accent hover:text-accent disabled:opacity-50"
                 disabled={pendingFromMe}
-                onClick={() => sendOfferDraw(roomId)}
+                onClick={() => {
+                  trackEvent('offer_draw');
+                  sendOfferDraw(roomId);
+                }}
               >
                 Offer draw
               </button>

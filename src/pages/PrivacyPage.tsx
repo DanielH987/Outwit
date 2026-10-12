@@ -6,7 +6,7 @@ export function PrivacyPage() {
   return (
     <main className="mx-auto max-w-2xl px-4 py-8">
       <h2 className="mb-1 text-2xl font-bold">Privacy Policy</h2>
-      <p className="mb-6 text-sm text-taupe">Last updated 15 September 2026.</p>
+      <p className="mb-6 text-sm text-taupe">Last updated 12 October 2026.</p>
 
       <div className="flex flex-col gap-4 text-sm leading-relaxed text-parchment/90">
         <section>
@@ -40,6 +40,17 @@ export function PrivacyPage() {
         </section>
 
         <section>
+          <h3 className="mb-1 text-base font-semibold text-parchment">Analytics</h3>
+          <p>
+            We use Umami, a privacy-first analytics service, to understand how people use Outwit — for
+            example, how many rooms are created, how many games reach the first move, and how games end.
+            Umami does not use cookies, does not track you across other websites, and does not collect
+            personal information such as your name, email address, or room codes. All data is processed
+            by Umami on our behalf.
+          </p>
+        </section>
+
+        <section>
           <h3 className="mb-1 text-base font-semibold text-parchment">What we do not do</h3>
           <p>
             We do not sell your data, show advertising, or track you across other websites. We request
@@ -55,6 +66,7 @@ export function PrivacyPage() {
             <li>Vercel (website hosting).</li>
             <li>Render (game server hosting).</li>
             <li>Google (optional sign-in with Google).</li>
+            <li>Umami (anonymous usage analytics).</li>
           </ul>
         </section>
 

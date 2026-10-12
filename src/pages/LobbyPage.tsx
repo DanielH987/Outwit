@@ -5,6 +5,7 @@ import { CountryFlag } from '@/components/CountryFlag';
 import { webSocketService } from '@/services/websocket';
 import { useLocalGameStore, useProfileStore } from '@/stores';
 import { generateInviteCode, isValidInviteCode, normalizeInviteCode } from '@/utils/inviteCode';
+import { trackEvent } from '@/services/analytics';
 import type { GameRoom } from '@/types';
 
 export function LobbyPage() {
@@ -28,6 +29,7 @@ export function LobbyPage() {
   const playingAs = displayName ?? guestName ?? ensureGuestName();
 
   const createGame = () => {
+    trackEvent('create_room');
     navigate(`/game/${generateInviteCode()}`);
   };
 
@@ -36,6 +38,7 @@ export function LobbyPage() {
     if (!raw) return;
     // Codes are normalized; anything else stays a free-text room name.
     const roomId = isValidInviteCode(raw) ? normalizeInviteCode(raw) : raw;
+    trackEvent('join_room');
     navigate(`/game/${encodeURIComponent(roomId)}`);
   };
 
